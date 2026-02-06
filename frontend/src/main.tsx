@@ -11,7 +11,7 @@ import './index.css';
 
 const config = getDefaultConfig({
   appName: 'Agent Code Hub',
-  projectId: 'agent_code_hub_2025',
+  projectId: '0005ec5f3738a86e892c5e769f480a26',
   chains: [luksoTestnet, lukso],
   transports: {
     [luksoTestnet.id]: http('https://rpc.testnet.lukso.network'),
