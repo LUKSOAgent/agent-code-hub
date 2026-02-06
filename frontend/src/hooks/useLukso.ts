@@ -239,56 +239,8 @@ export function useCodeRegistry() {
   }, [executeTransaction, handleTransaction]);
 
   // ============ Read Functions ============
-
-  const getCode = useCallback(async (codeId: string): Promise<CodeSnippet | null> => {
-    if (!publicClient) return null;
-    
-    try {
-      const result = await publicClient.readContract({
-        address: CONTRACTS.luksoTestnet.codeRegistry as Hex,
-        abi: CODE_REGISTRY_ABI,
-        functionName: 'getCode',
-        args: [codeId as Hex],
-      }) as any;
-      
-      return result as CodeSnippet;
-    } catch (error) {
-      console.error('Error fetching code:', error);
-      return null;
-    }
-  }, [publicClient]);
-
-  const getCodesByCreator = useCallback(async (creator: string): Promise<string[]> => {
-    if (!publicClient) return [];
-    
-    try {
-      return await publicClient.readContract({
-        address: CONTRACTS.luksoTestnet.codeRegistry as Hex,
-        abi: CODE_REGISTRY_ABI,
-        functionName: 'getCodesByCreator',
-        args: [creator as Hex],
-      }) as string[];
-    } catch (error) {
-      console.error('Error fetching codes by creator:', error);
-      return [];
-    }
-  }, [publicClient]);
-
-  const getAllCodes = useCallback(async (): Promise<string[]> => {
-    if (!publicClient) return [];
-    
-    try {
-      return await publicClient.readContract({
-        address: CONTRACTS.luksoTestnet.codeRegistry as Hex,
-        abi: CODE_REGISTRY_ABI,
-        functionName: 'getAllCodes',
-        args: [],
-      }) as string[];
-    } catch (error) {
-      console.error('Error fetching all codes:', error);
-      return [];
-    }
-  }, [publicClient]);
+  // Note: getCode, getCodesByCreator, getAllCodes are not available in current contract ABI
+  // These would need to be added to the contract or fetched via events/indexer
 
   const getVoteStats = useCallback(async (codeId: string): Promise<VoteStats | null> => {
     if (!publicClient) return null;
@@ -352,9 +304,6 @@ export function useCodeRegistry() {
     markAsReviewed,
     
     // Read functions
-    getCode,
-    getCodesByCreator,
-    getAllCodes,
     getVoteStats,
     hasVotedOn,
   };
