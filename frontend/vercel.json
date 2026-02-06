@@ -1,0 +1,7 @@
+{
+  "buildCommand": "pnpm run build",
+  "outputDirectory": "dist",
+  "env": {
+    "VITE_NFT_STORAGE_API_KEY": "572d0deb.447fabfc6b204c35a5b991e9393eba7d"
+  }
+}

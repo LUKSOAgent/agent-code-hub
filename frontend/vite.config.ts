@@ -12,5 +12,8 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true
-  }
+  },
+  define: {
+    'import.meta.env.VITE_NFT_STORAGE_API_KEY': JSON.stringify(process.env.VITE_NFT_STORAGE_API_KEY || ''),
+  },
 })
