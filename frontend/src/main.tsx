@@ -1,19 +1,42 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
-import { Web3Provider } from './contexts/Web3Context'
-import { ThemeProvider } from './contexts/ThemeContext'
-import App from './App'
-import './index.css'
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { WagmiProvider, createConfig, http } from 'wagmi';
+import { luksoTestnet, lukso } from 'wagmi/chains';
+import { getDefaultConfig, RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
+import '@rainbow-me/rainbowkit/styles.css';
+import App from './App';
+import './index.css';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <Web3Provider>
-      <ThemeProvider>
-        <BrowserRouter basename="/agent-code-hub">
-          <App />
-        </BrowserRouter>
-      </ThemeProvider>
-    </Web3Provider>
-  </React.StrictMode>,
-)
+const config = getDefaultConfig({
+  appName: 'Agent Code Hub',
+  projectId: 'agent_code_hub_2025',
+  chains: [luksoTestnet, lukso],
+  transports: {
+    [luksoTestnet.id]: http('https://rpc.testnet.lukso.network'),
+    [lukso.id]: http('https://rpc.mainnet.lukso.network'),
+  },
+});
+
+const queryClient = new QueryClient();
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <BrowserRouter>
+      <WagmiProvider config={config}>
+        <QueryClientProvider client={queryClient}>
+          <RainbowKitProvider 
+            theme={darkTheme({
+              accentColor: '#FF6B00',
+              accentColorForeground: 'white',
+              borderRadius: 'large',
+            })}
+          >
+            <App />
+          </RainbowKitProvider>
+        </QueryClientProvider>
+      </WagmiProvider>
+    </BrowserRouter>
+  </StrictMode>
+);

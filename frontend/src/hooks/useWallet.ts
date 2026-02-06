@@ -1,42 +1,36 @@
 import { useState, useEffect, useCallback } from 'react'
-import { 
-  createWalletClient, 
-  createPublicClient, 
-  http, 
-  custom
-} from 'viem'
-import { luksoTestnet } from 'viem/chains'
+import { useAccount, useWalletClient, usePublicClient, useDisconnect } from 'wagmi'
+import { luksoTestnet } from 'wagmi/chains'
 
 const LSP0_INTERFACE_ID = '0x24871b3a'
 const ERC725X_INTERFACE_ID = '0x7545acac'
 const ERC725Y_INTERFACE_ID = '0x629aa694'
 
 export function useWallet() {
-  const publicClient: any = createPublicClient({
-    chain: luksoTestnet as any,
-    transport: http('https://rpc.testnet.lukso.network'),
-  })
+  const { address, isConnected: isWagmiConnected } = useAccount()
+  const { data: walletClient } = useWalletClient()
+  const publicClient: any = usePublicClient()
+  const { disconnect: wagmiDisconnect } = useDisconnect()
 
   const [state, setState] = useState({
-    address: null as `0x${string}` | null,
     isConnected: false,
     isUP: false,
     upProfile: null as any,
-    walletClient: null as any,
-    publicClient,
     isConnecting: false,
     error: null as string | null,
   })
 
-  const detectUP = useCallback(async (address: `0x${string}`) => {
+  const detectUP = useCallback(async (addr: `0x${string}`) => {
+    if (!publicClient) return false
+    
     try {
-      const code = await publicClient.getCode({ address })
+      const code = await publicClient.getCode({ address: addr })
       if (!code || code === '0x') return false
 
       const supportsInterface = async (interfaceId: string) => {
         try {
           return await publicClient.readContract({
-            address,
+            address: addr,
             abi: [{ 
               type: 'function' as const, 
               name: 'supportsInterface', 
@@ -45,7 +39,7 @@ export function useWallet() {
               stateMutability: 'view' as const 
             }],
             functionName: 'supportsInterface',
-            args: [interfaceId],
+            args: [interfaceId as `0x${string}`],
           })
         } catch {
           return false
@@ -64,61 +58,45 @@ export function useWallet() {
     }
   }, [publicClient])
 
-  const connect = useCallback(async () => {
-    if (!window.ethereum) {
-      setState(s => ({ ...s, error: 'No wallet found. Install MetaMask or Universal Profile extension.' }))
-      return
-    }
-
-    setState(s => ({ ...s, isConnecting: true, error: null }))
-
-    try {
-      const accounts = await window.ethereum.request({ 
-        method: 'eth_requestAccounts' 
-      })
-
-      if (!accounts?.length) {
-        throw new Error('No accounts returned')
+  // Update state when wagmi connection changes
+  useEffect(() => {
+    async function syncState() {
+      if (isWagmiConnected && address) {
+        const isUP = await detectUP(address as `0x${string}`)
+        setState(s => ({
+          ...s,
+          isConnected: true,
+          isUP,
+          isConnecting: false,
+          error: null,
+        }))
+      } else {
+        setState(s => ({
+          ...s,
+          isConnected: false,
+          isUP: false,
+          upProfile: null,
+        }))
       }
-
-      const address = accounts[0] as `0x${string}`
-      const walletClient = createWalletClient({
-        chain: luksoTestnet as any,
-        transport: custom(window.ethereum),
-      })
-
-      const isUP = await detectUP(address)
-
-      setState(s => ({
-        ...s,
-        address,
-        isConnected: true,
-        isUP,
-        walletClient,
-        isConnecting: false,
-      }))
-
-      localStorage.setItem('walletConnected', 'true')
-    } catch (err: any) {
-      setState(s => ({ 
-        ...s, 
-        isConnecting: false, 
-        error: err?.message || 'Failed to connect' 
-      }))
     }
-  }, [detectUP])
+    syncState()
+  }, [isWagmiConnected, address, detectUP])
+
+  const connect = useCallback(async () => {
+    // RainbowKit handles the connection UI
+    // This is called after user clicks ConnectButton
+    setState(s => ({ ...s, isConnecting: true, error: null }))
+  }, [])
 
   const disconnect = useCallback(() => {
+    wagmiDisconnect()
     setState(s => ({
       ...s,
-      address: null,
       isConnected: false,
       isUP: false,
       upProfile: null,
-      walletClient: null,
     }))
-    localStorage.removeItem('walletConnected')
-  }, [])
+  }, [wagmiDisconnect])
 
   const executeTransaction = useCallback(async (
     contractAddress: string,
@@ -127,23 +105,15 @@ export function useWallet() {
     args: any[],
     value: bigint = 0n
   ): Promise<string> => {
-    if (!state.walletClient || !state.address) {
+    if (!walletClient || !address) {
       throw new Error('Wallet not connected')
     }
 
     const { encodeFunctionData } = await import('viem')
     const data = encodeFunctionData({ abi, functionName, args })
 
-    const [account] = await state.walletClient.getAddresses()
-
-    const txParams: any = {
-      account,
-      data,
-      value,
-      kzg: undefined,
-    }
-
     if (state.isUP) {
+      // Route through UP.execute()
       const executeData = encodeFunctionData({
         abi: [{
           type: 'function',
@@ -161,82 +131,33 @@ export function useWallet() {
         args: [0n, contractAddress as `0x${string}`, value, data],
       })
 
-      txParams.to = state.address
-      txParams.data = executeData
+      return (walletClient as any).sendTransaction({
+        account: address,
+        to: address,
+        data: executeData,
+        value,
+      })
     } else {
-      txParams.to = contractAddress
+      // Direct contract call for EOA
+      return walletClient.writeContract({
+        account: address,
+        address: contractAddress as `0x${string}`,
+        abi,
+        functionName,
+        args,
+        value,
+        chain: luksoTestnet,
+      } as any)
     }
-
-    return state.walletClient.sendTransaction(txParams)
-  }, [state.walletClient, state.address, state.isUP])
-
-  useEffect(() => {
-    const autoConnect = async () => {
-      if (localStorage.getItem('walletConnected') === 'true' && window.ethereum) {
-        try {
-          const accounts = await window.ethereum.request({ 
-            method: 'eth_accounts' 
-          })
-          
-          if (accounts?.length > 0) {
-            const address = accounts[0] as `0x${string}`
-            const walletClient = createWalletClient({
-              chain: luksoTestnet as any,
-              transport: custom(window.ethereum),
-            })
-            const isUP = await detectUP(address)
-            
-            setState(s => ({
-              ...s,
-              address,
-              isConnected: true,
-              isUP,
-              walletClient,
-            }))
-          }
-        } catch (err) {
-          localStorage.removeItem('walletConnected')
-        }
-      }
-    }
-    autoConnect()
-  }, [detectUP])
-
-  useEffect(() => {
-    if (!window.ethereum) return
-
-    const handleAccountsChanged = (accounts: string[]) => {
-      if (accounts.length === 0) {
-        disconnect()
-      } else if (accounts[0] !== state.address) {
-        connect()
-      }
-    }
-
-    const handleChainChanged = () => {
-      window.location.reload()
-    }
-
-    window.ethereum.on('accountsChanged', handleAccountsChanged)
-    window.ethereum.on('chainChanged', handleChainChanged)
-
-    return () => {
-      window.ethereum?.removeListener('accountsChanged', handleAccountsChanged)
-      window.ethereum?.removeListener('chainChanged', handleChainChanged)
-    }
-  }, [state.address, connect, disconnect])
+  }, [walletClient, address, state.isUP])
 
   return {
+    address: address || null,
     ...state,
     connect,
     disconnect,
     executeTransaction,
+    walletClient,
     publicClient,
-  }
-}
-
-declare global {
-  interface Window {
-    ethereum?: any
   }
 }
