@@ -4,6 +4,7 @@ import Home from './pages/Home'
 import { Explore } from './pages/Explore'
 import Upload from './pages/Upload'
 import { MyCodes } from './pages/MyCodes'
+import { CodeDetail } from './pages/CodeDetail'
 import './index.css'
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/explore" element={<Explore />} />
+        <Route path="/code/:id" element={<CodeDetail />} />
         <Route path="/upload" element={<Upload />} />
         <Route path="/my-codes" element={<MyCodes />} />
       </Routes>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCodeRegistry } from '../hooks/useLukso'
 import { formatDistanceToNow } from '../utils/format'
+import { ThumbsUp, ThumbsDown, TrendingUp } from 'lucide-react'
 
 interface CodeSnippet {
   id: string
@@ -17,11 +18,18 @@ interface CodeSnippet {
   exists: boolean
 }
 
+interface CodeWithVotes extends CodeSnippet {
+  upvotes: bigint
+  downvotes: bigint
+  score: bigint
+}
+
 export function Explore() {
-  const [codes, setCodes] = useState<CodeSnippet[]>([])
+  const [codes, setCodes] = useState<CodeWithVotes[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedLanguage, setSelectedLanguage] = useState('all')
-  const { getAllCodes, getCode } = useCodeRegistry()
+  const [sortBy, setSortBy] = useState<'newest' | 'popular'>('popular')
+  const { getAllCodes, getCode, getVoteStats } = useCodeRegistry()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -31,16 +39,20 @@ export function Explore() {
         const codeData = await Promise.all(
           codeIds.map(async (id) => {
             const code = await getCode(id)
+            const votes = await getVoteStats(id)
             if (code && code.exists) {
               return {
                 id,
-                ...code
-              } as CodeSnippet
+                ...code,
+                upvotes: votes?.upvoteCount || 0n,
+                downvotes: votes?.downvoteCount || 0n,
+                score: votes?.score || 0n
+              } as CodeWithVotes
             }
             return null
           })
         )
-        setCodes(codeData.filter((c): c is CodeSnippet => c !== null))
+        setCodes(codeData.filter((c): c is CodeWithVotes => c !== null))
       } catch (error) {
         console.error('Error loading codes:', error)
       } finally {
@@ -49,13 +61,22 @@ export function Explore() {
     }
 
     loadCodes()
-  }, [getAllCodes, getCode])
+  }, [getAllCodes, getCode, getVoteStats])
 
   const languages = ['all', ...new Set(codes.map(c => c.language))]
   
-  const filteredCodes = selectedLanguage === 'all' 
+  let filteredCodes = selectedLanguage === 'all' 
     ? codes 
     : codes.filter(c => c.language === selectedLanguage)
+  
+  // Sort codes
+  filteredCodes = [...filteredCodes].sort((a, b) => {
+    if (sortBy === 'newest') {
+      return Number(b.createdAt) - Number(a.createdAt)
+    } else {
+      return Number(b.score) - Number(a.score)
+    }
+  })
 
   if (loading) {
     return (
@@ -74,17 +95,28 @@ export function Explore() {
             <p className="text-slate-400 text-sm mt-1">LSP Standards & Universal Profile Examples Only</p>
           </div>
           
-          <select
-            value={selectedLanguage}
-            onChange={(e) => setSelectedLanguage(e.target.value)}
-            className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
-          >
-            {languages.map(lang => (
-              <option key={lang} value={lang}>
-                {lang === 'all' ? 'All Languages' : lang}
-              </option>
-            ))}
-          </select>
+          <div className="flex gap-3">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'newest' | 'popular')}
+              className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
+            >
+              <option value="popular">Most Popular</option>
+              <option value="newest">Newest</option>
+            </select>
+            
+            <select
+              value={selectedLanguage}
+              onChange={(e) => setSelectedLanguage(e.target.value)}
+              className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
+            >
+              {languages.map(lang => (
+                <option key={lang} value={lang}>
+                  {lang === 'all' ? 'All Languages' : lang}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {filteredCodes.length === 0 ? (
@@ -106,9 +138,10 @@ export function Explore() {
                       {code.language.slice(0, 2).toUpperCase()}
                     </span>
                   </div>
-                  <span className="text-slate-500 text-sm">
-                    v{code.version}
-                  </span>
+                  <div className="flex items-center gap-1 text-emerald-400">
+                    <TrendingUp className="w-4 h-4" />
+                    <span className="font-semibold">{code.score.toString()}</span>
+                  </div>
                 </div>
 
                 <h3 className="text-white font-semibold text-lg mb-2">{code.name}</h3>
@@ -125,13 +158,19 @@ export function Explore() {
                   ))}
                 </div>
 
-                <div className="flex items-center justify-between text-sm text-slate-500">
-                  <span className="font-mono">
-                    {code.creator.slice(0, 6)}...{code.creator.slice(-4)}
-                  </span>
-                  <span>
-                    {formatDistanceToNow(Number(code.createdAt))}
-                  </span>
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono text-slate-500">
+                      {code.creator.slice(0, 6)}...{code.creator.slice(-4)}
+                    </span>
+                    <span className="text-slate-500">
+                      {formatDistanceToNow(Number(code.createdAt))}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-500">
+                    <ThumbsUp className="w-3 h-3" />
+                    <span>{code.upvotes.toString()}</span>
+                  </div>
                 </div>
               </div>
             ))}
