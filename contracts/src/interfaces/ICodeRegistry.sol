@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 /**
  * @title ICodeRegistry
- * @notice Interface for the CodeRegistry contract that manages code snippets
+ * @notice Interface for the CodeRegistry contract that manages code snippets with voting and coordination
  */
 interface ICodeRegistry {
     // Enums
@@ -33,6 +33,14 @@ interface ICodeRegistry {
         uint256 updatedAt;
     }
 
+    struct Comment {
+        uint256 id;
+        address author;
+        string content;
+        uint256 timestamp;
+        uint256 parentId;
+    }
+
     // Events
     event CodePosted(uint256 indexed id, address indexed author, string ipfsHash, string title);
     event CodeUpdated(uint256 indexed id, uint256 indexed newId, address indexed author);
@@ -42,6 +50,19 @@ interface ICodeRegistry {
     event CategoryAdded(Category category, string name);
     event PostingFeeUpdated(uint256 oldFee, uint256 newFee);
     event FeesWithdrawn(address indexed owner, uint256 amount);
+    event ReputationTokenUpdated(address newToken);
+    
+    // Voting events
+    event VoteCast(uint256 indexed codeId, address indexed voter, bool isUpvote, uint256 weight);
+    event VoteRemoved(uint256 indexed codeId, address indexed voter);
+    
+    // Comment events
+    event CommentAdded(uint256 indexed codeId, uint256 indexed commentId, address indexed author, uint256 parentId);
+    
+    // Agent coordination events
+    event AgentRegistered(address indexed agent);
+    event AgentUnregistered(address indexed agent);
+    event CodeReviewed(uint256 indexed codeId, address indexed agent);
 
     // Core functions
     function postCode(
@@ -71,6 +92,23 @@ interface ICodeRegistry {
 
     function deactivateCode(uint256 codeId) external;
 
+    // Voting functions
+    function vote(uint256 codeId, bool isUpvote) external;
+    function removeVote(uint256 codeId) external;
+    function getVoteStats(uint256 codeId) external view returns (uint256 upvoteCount, uint256 downvoteCount, int256 score);
+    function hasVotedOn(uint256 codeId, address voter) external view returns (bool);
+
+    // Comment functions
+    function addComment(uint256 codeId, string calldata content, uint256 parentId) external returns (uint256);
+    function getComment(uint256 codeId, uint256 commentId) external view returns (Comment memory);
+    function getCodeComments(uint256 codeId) external view returns (uint256[] memory);
+
+    // Agent coordination functions
+    function registerAgent(address agent) external;
+    function unregisterAgent(address agent) external;
+    function markAsReviewed(uint256 codeId) external;
+    function getCodeReviewers(uint256 codeId) external view returns (address[] memory);
+
     // View functions
     function getCodeSnippet(uint256 codeId) external view returns (CodeSnippet memory);
     function getAuthorCodes(address author) external view returns (uint256[] memory);
@@ -83,6 +121,7 @@ interface ICodeRegistry {
 
     // Admin functions
     function setPostingFee(uint256 newFee) external;
+    function setReputationToken(address newToken) external;
     function withdrawFees() external;
     function addSupportedLanguage(Language language, string calldata name) external;
     function addSupportedCategory(Category category, string calldata name) external;
@@ -103,4 +142,9 @@ interface ICodeRegistry {
     error TransferFailed();
     error InvalidInput();
     error VersionLimitReached();
+    error AlreadyVoted();
+    error NotVoted();
+    error EmptyContent();
+    error InvalidParentComment();
+    error NotRegisteredAgent();
 }
