@@ -18,46 +18,112 @@ import CodeCard from '../components/CodeCard'
 import Button from '../components/Button'
 import type { CodeSnippet } from '../types'
 
-// Mock data for featured snippets
+// Mock data for featured snippets - LUKSO/LSP specific examples
 const featuredSnippets: CodeSnippet[] = [
   {
     id: '1',
-    title: 'ERC-20 Token with Burn Function',
-    description: 'A secure ERC-20 token implementation with burn functionality and access control.',
-    code: `// SPDX-License-Identifier: MIT\npragma solidity ^0.8.19;\n\ncontract MyToken is ERC20, Ownable {\n    constructor() ERC20("MyToken", "MTK") {\n        _mint(msg.sender, 1000000 * 10**decimals());\n    }\n    \n    function burn(uint256 amount) public {\n        _burn(msg.sender, amount);\n    }\n}`,
+    title: 'LSP7 Digital Asset (Token)',
+    description: 'LUKSO LSP7 token with metadata and transfer hooks for Universal Profiles.',
+    code: `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import {LSP7DigitalAsset} from "@lukso/lsp7-contracts/contracts/LSP7DigitalAsset.sol";
+
+contract MyToken is LSP7DigitalAsset {
+    constructor()
+        LSP7DigitalAsset("My LSP7 Token", "ML7", msg.sender, false)
+    {
+        _mint(msg.sender, 1000000 * 10**decimals(), true, "");
+    }
+    
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount,
+        bytes memory data
+    ) internal override {
+        // Custom logic before transfers
+        super._beforeTokenTransfer(from, to, amount, data);
+    }
+}`,
     language: 'solidity',
-    author: 'dev_alice',
-    authorAddress: '0x1234...5678',
+    author: 'lukso_builder',
+    authorAddress: '0x293E...0232a',
     timestamp: Date.now() - 86400000,
-    tags: ['erc20', 'token', 'defi'],
+    tags: ['lsp7', 'token', 'lukso'],
     likes: 128,
     forks: 45,
     isVerified: true
   },
   {
     id: '2',
-    title: 'NFT Minting Contract',
-    description: 'Simple NFT minting contract with metadata support and minting limits.',
-    code: `contract NFTMint is ERC721 {\n    uint256 public maxSupply = 10000;\n    uint256 public mintPrice = 0.05 ether;\n    \n    function mint(uint256 quantity) external payable {\n        require(totalSupply() + quantity <= maxSupply);\n        require(msg.value >= mintPrice * quantity);\n        _safeMint(msg.sender, quantity);\n    }\n}`,
+    title: 'LSP8 Identifiable Digital Asset (NFT)',
+    description: 'LUKSO LSP8 NFT with unique token IDs and metadata for each asset.',
+    code: `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import {LSP8IdentifiableDigitalAsset} from "@lukso/lsp8-contracts/contracts/LSP8IdentifiableDigitalAsset.sol";
+import {_LSP8_TOKENID_TYPE_HASH} from "@lukso/lsp8-contracts/contracts/LSP8Constants.sol";
+
+contract MyNFT is LSP8IdentifiableDigitalAsset {
+    uint256 private _tokenIdCounter;
+    
+    constructor()
+        LSP8IdentifiableDigitalAsset(
+            "My LSP8 NFT", 
+            "MNFT", 
+            msg.sender,
+            _LSP8_TOKENID_TYPE_HASH
+        )
+    {}
+    
+    function mint(address to, bytes32 tokenId) external {
+        _mint(to, tokenId, true, "");
+    }
+}`,
     language: 'solidity',
-    author: 'crypto_bob',
-    authorAddress: '0xabcd...efgh',
+    author: 'nft_creator',
+    authorAddress: '0x8FFE...99f83',
     timestamp: Date.now() - 172800000,
-    tags: ['nft', 'erc721', 'minting'],
+    tags: ['lsp8', 'nft', 'lukso'],
     likes: 89,
     forks: 32,
     isVerified: true
   },
   {
     id: '3',
-    title: 'Staking Contract',
-    description: 'Yield farming staking contract with reward distribution mechanism.',
-    code: `contract StakingPool is ReentrancyGuard {\n    mapping(address => uint256) public stakes;\n    mapping(address => uint256) public rewards;\n    \n    function stake(uint256 amount) external {\n        updateReward(msg.sender);\n        stakes[msg.sender] += amount;\n        token.transferFrom(msg.sender, address(this), amount);\n    }\n}`,
+    title: 'LSP26 Follower System',
+    description: 'Universal Profile following system using LSP26 standard for social graphs.',
+    code: `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import {ILSP26FollowerSystem} from "@lukso/lsp26-contracts/contracts/ILSP26FollowerSystem.sol";
+
+contract FollowSystem is ILSP26FollowerSystem {
+    mapping(address => mapping(address => bool)) public following;
+    mapping(address => address[]) public followers;
+    
+    event Follow(address indexed follower, address indexed target);
+    event Unfollow(address indexed follower, address indexed target);
+    
+    function follow(address target) external {
+        require(!following[msg.sender][target], "Already following");
+        following[msg.sender][target] = true;
+        followers[target].push(msg.sender);
+        emit Follow(msg.sender, target);
+    }
+    
+    function unfollow(address target) external {
+        require(following[msg.sender][target], "Not following");
+        following[msg.sender][target] = false;
+        emit Unfollow(msg.sender, target);
+    }
+}`,
     language: 'solidity',
-    author: 'yield_farmer',
-    authorAddress: '0x9876...5432',
+    author: 'social_builder',
+    authorAddress: '0x7A94...63eB0',
     timestamp: Date.now() - 259200000,
-    tags: ['staking', 'yield', 'defi'],
+    tags: ['lsp26', 'social', 'lukso'],
     likes: 156,
     forks: 67,
     isVerified: true
