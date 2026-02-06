@@ -312,6 +312,151 @@ export function useCodeRegistry() {
 /**
  * Hook for ReputationToken contract interactions
  */
+/**
+ * Hook to fetch Universal Profile metadata (LSP3)
+ */
+export function useUniversalProfile() {
+  const { publicClient } = useWeb3();
+  const [profile, setProfile] = useState<{
+    name: string | null;
+    description: string | null;
+    profilePicture: string | null;
+    backgroundImage: string | null;
+    tags: string[];
+    links: { title: string; url: string }[];
+  } | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchProfile = useCallback(async (address: string) => {
+    if (!publicClient || !address) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // LSP3 Metadata key
+      const LSP3_METADATA_KEY = '0x5ef83ad9559033e6e941db7d7c495acdce616347d28e90c7ce47cbfcfcad3bc5';
+      
+      // LSP0 ERC725Account ABI for getData
+      const LSP0_ABI = [
+        {
+          inputs: [{ name: 'dataKey', type: 'bytes32' }],
+          name: 'getData',
+          outputs: [{ name: 'dataValue', type: 'bytes' }],
+          stateMutability: 'view',
+          type: 'function',
+        },
+      ] as const;
+
+      // Fetch metadata from the Universal Profile
+      const metadata = await publicClient.readContract({
+        address: address as Hex,
+        abi: LSP0_ABI,
+        functionName: 'getData',
+        args: [LSP3_METADATA_KEY],
+      }) as Hex;
+
+      if (!metadata || metadata === '0x') {
+        setProfile(null);
+        setIsLoading(false);
+        return;
+      }
+
+      // Decode the VerifiableURI (LSP2 encoding)
+      // Format: 0x6f357c6a + length + verification method + data
+      const metadataString = metadata.toString();
+      
+      // Check if it's a data URL or IPFS
+      let jsonData: any = null;
+      
+      if (metadataString.includes('data:')) {
+        // Extract JSON from data URL
+        const base64Match = metadataString.match(/base64,(.+)/);
+        if (base64Match) {
+          try {
+            const decoded = atob(base64Match[1]);
+            jsonData = JSON.parse(decoded);
+          } catch (e) {
+            console.error('Failed to decode base64 metadata:', e);
+          }
+        }
+      } else if (metadataString.startsWith('0x') && metadataString.length > 10) {
+        // Try to decode hex data
+        try {
+          // Remove 0x prefix and LSP2 header (first 8 bytes = 16 chars)
+          const hexData = metadataString.slice(2).slice(32); // Skip header
+          const bytes: number[] = [];
+          for (let i = 0; i < hexData.length; i += 2) {
+            bytes.push(parseInt(hexData.slice(i, i + 2), 16));
+          }
+          const decoded = new TextDecoder().decode(new Uint8Array(bytes));
+          // Find JSON start
+          const jsonStart = decoded.indexOf('{');
+          if (jsonStart >= 0) {
+            jsonData = JSON.parse(decoded.slice(jsonStart));
+          }
+        } catch (e) {
+          console.error('Failed to decode hex metadata:', e);
+        }
+      }
+
+      // Fetch IPFS data if URL provided
+      if (jsonData?.url && jsonData.url.startsWith('ipfs://')) {
+        try {
+          const ipfsHash = jsonData.url.replace('ipfs://', '');
+          const gatewayUrl = `https://api.universalprofile.cloud/ipfs/${ipfsHash}`;
+          const response = await fetch(gatewayUrl);
+          if (response.ok) {
+            jsonData = await response.json();
+          }
+        } catch (e) {
+          console.error('Failed to fetch IPFS metadata:', e);
+        }
+      }
+
+      // Extract profile data
+      const profileData = jsonData?.LSP3Profile || jsonData;
+      
+      if (profileData) {
+        const profilePicture = profileData.profileImage?.[0]?.url 
+          ? profileData.profileImage[0].url.replace('ipfs://', 'https://api.universalprofile.cloud/ipfs/')
+          : null;
+
+        setProfile({
+          name: profileData.name || null,
+          description: profileData.description || null,
+          profilePicture,
+          backgroundImage: profileData.backgroundImage?.[0]?.url || null,
+          tags: profileData.tags || [],
+          links: profileData.links || [],
+        });
+      } else {
+        setProfile(null);
+      }
+    } catch (err: any) {
+      console.error('Error fetching UP profile:', err);
+      setError(err.message || 'Failed to fetch profile');
+      setProfile(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [publicClient]);
+
+  const clearProfile = useCallback(() => {
+    setProfile(null);
+    setError(null);
+  }, []);
+
+  return {
+    profile,
+    isLoading,
+    error,
+    fetchProfile,
+    clearProfile,
+  };
+}
+
 export function useReputationToken() {
   const { publicClient } = useWeb3();
   const [isLoading, setIsLoading] = useState(false);

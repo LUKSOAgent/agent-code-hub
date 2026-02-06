@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Code2, Upload, User, Search, Menu, X, Wallet } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useAccount } from 'wagmi';
+import { useUniversalProfile } from '../hooks/useLukso';
 
 export function Navbar() {
   const location = useLocation();
@@ -10,14 +11,30 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const { address, isConnected } = useAccount();
+  const { profile, fetchProfile, clearProfile } = useUniversalProfile();
   
   const isActive = (path: string) => location.pathname === path;
+  
+  // Fetch UP profile when connected
+  useEffect(() => {
+    if (isConnected && address) {
+      fetchProfile(address);
+    } else {
+      clearProfile();
+    }
+  }, [isConnected, address, fetchProfile, clearProfile]);
   
   // Format address for display
   const formatAddress = (addr: string | undefined) => {
     if (!addr) return '';
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
+  
+  // Get display name (UP name or shortened address)
+  const displayName = profile?.name || formatAddress(address);
+  
+  // Get profile image
+  const profileImage = profile?.profilePicture;
 
   // Handle scroll effect
   useEffect(() => {
@@ -108,11 +125,34 @@ export function Navbar() {
               </Link>
             ))}
 
+            {/* UP Profile Display */}
+            {isConnected && (
+              <div className="ml-3 pl-3 border-l border-slate-800 flex items-center gap-3">
+                {profileImage ? (
+                  <img 
+                    src={profileImage} 
+                    alt={displayName || 'Profile'} 
+                    className="w-8 h-8 rounded-lg object-cover border border-slate-700"
+                  />
+                ) : null}
+                <div className="hidden lg:block text-right">
+                  <p className="text-sm font-medium text-white truncate max-w-[150px]">
+                    {displayName}
+                  </p>
+                  {profile?.name && (
+                    <p className="text-xs text-slate-400 font-mono">
+                      {formatAddress(address)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* RainbowKit Connect Button */}
             <div className="ml-3 pl-3 border-l border-slate-800">
               <ConnectButton 
                 showBalance={false}
-                accountStatus="address"
+                accountStatus={profile?.name ? 'avatar' : 'address'}
                 chainStatus="icon"
               />
             </div>
@@ -120,10 +160,17 @@ export function Navbar() {
 
           {/* Mobile Menu Button */}
           <div className="flex items-center gap-2 md:hidden">
+            {isConnected && profileImage && (
+              <img 
+                src={profileImage} 
+                alt={displayName || 'Profile'} 
+                className="w-8 h-8 rounded-lg object-cover border border-slate-700"
+              />
+            )}
             <div className="scale-90">
               <ConnectButton 
                 showBalance={false}
-                accountStatus="avatar"
+                accountStatus={profile?.name ? 'avatar' : 'address'}
                 chainStatus="none"
               />
             </div>
@@ -159,20 +206,28 @@ export function Navbar() {
           {/* Wallet Status in Mobile Menu */}
           <div className="mb-4 p-4 rounded-xl bg-slate-800/80 border border-slate-700">
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                isConnected 
-                  ? 'bg-emerald-500/20 text-emerald-400' 
-                  : 'bg-slate-700 text-slate-400'
-              }`}>
-                <Wallet className="w-5 h-5" />
-              </div>
+              {isConnected && profileImage ? (
+                <img 
+                  src={profileImage} 
+                  alt={displayName || 'Profile'} 
+                  className="w-10 h-10 rounded-xl object-cover border border-slate-600"
+                />
+              ) : (
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                  isConnected 
+                    ? 'bg-emerald-500/20 text-emerald-400' 
+                    : 'bg-slate-700 text-slate-400'
+                }`}>
+                  <Wallet className="w-5 h-5" />
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">
-                  {isConnected ? 'Connected' : 'Not Connected'}
+                  {isConnected ? (profile?.name ? 'Universal Profile' : 'Connected') : 'Not Connected'}
                 </p>
                 {isConnected && address ? (
-                  <p className="text-sm font-mono text-white truncate">
-                    {formatAddress(address)}
+                  <p className="text-sm font-medium text-white truncate">
+                    {displayName}
                   </p>
                 ) : (
                   <p className="text-sm text-slate-500">
