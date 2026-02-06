@@ -17,6 +17,19 @@ interface CodeSnippet {
   exists: boolean
 }
 
+// LUKSO/LSP specific keywords for filtering
+const LUKSO_KEYWORDS = [
+  'lsp', 'lukso', 'universal profile', 'up', 'keymanager', 'key manager',
+  'erc725', 'lsp0', 'lsp1', 'lsp2', 'lsp3', 'lsp4', 'lsp5', 'lsp6', 'lsp7', 'lsp8',
+  'lsp9', 'lsp10', 'lsp11', 'lsp12', 'lsp14', 'lsp17', 'lsp20', 'lsp23', 'lsp24', 'lsp25', 'lsp26',
+  'digital asset', 'identifiable asset', 'vault', 'delegation'
+]
+
+function isLuksoRelated(code: CodeSnippet): boolean {
+  const searchText = `${code.name} ${code.description} ${code.tags.join(' ')}`.toLowerCase()
+  return LUKSO_KEYWORDS.some(keyword => searchText.includes(keyword))
+}
+
 export function Explore() {
   const [codes, setCodes] = useState<CodeSnippet[]>([])
   const [loading, setLoading] = useState(true)
@@ -40,7 +53,9 @@ export function Explore() {
             return null
           })
         )
-        setCodes(codeData.filter((c): c is CodeSnippet => c !== null))
+        // Filter for LUKSO-related content only
+        const luksoCodes = codeData.filter((c): c is CodeSnippet => c !== null && isLuksoRelated(c))
+        setCodes(luksoCodes)
       } catch (error) {
         console.error('Error loading codes:', error)
       } finally {
@@ -69,7 +84,10 @@ export function Explore() {
     <div className="min-h-screen bg-slate-950 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-          <h1 className="text-3xl font-bold text-white">Explore Code Snippets</h1>
+          <div>
+            <h1 className="text-3xl font-bold text-white">LUKSO Code Hub</h1>
+            <p className="text-slate-400 text-sm mt-1">LSP Standards & Universal Profile Examples Only</p>
+          </div>
           
           <select
             value={selectedLanguage}
@@ -86,7 +104,8 @@ export function Explore() {
 
         {filteredCodes.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-slate-400 text-lg">No code snippets found.</p>
+            <p className="text-slate-400 text-lg">No LUKSO code snippets found.</p>
+            <p className="text-slate-500 text-sm mt-2">Upload LSP implementations, UP interactions, or LYX transaction examples.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

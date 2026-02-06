@@ -205,7 +205,7 @@ const UploadPage: React.FC = () => {
             <h1 className="text-2xl sm:text-3xl font-bold text-white">Post Your Code</h1>
           </div>
           <p className="text-slate-400 ml-13 sm:ml-14">
-            Share your smart contract code with the community
+            Share LSP standards, UP interactions & LUKSO-specific code
           </p>
         </div>
 
@@ -262,7 +262,7 @@ const UploadPage: React.FC = () => {
                   className={`w-full px-4 py-3 rounded-xl bg-slate-800/50 border ${
                     errors.name ? 'border-red-500/50' : 'border-slate-700/50'
                   } text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all`}
-                  placeholder="e.g., ERC20 Token Implementation"
+                  placeholder="e.g., LSP7 Digital Asset with Custom Logic"
                 />
                 {errors.name && (
                   <p className="mt-2 text-sm text-red-400 flex items-center gap-1">
@@ -283,7 +283,7 @@ const UploadPage: React.FC = () => {
                   className={`w-full px-4 py-3 rounded-xl bg-slate-800/50 border ${
                     errors.description ? 'border-red-500/50' : 'border-slate-700/50'
                   } text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all resize-none`}
-                  placeholder="Describe what your code does, its features, and use cases..."
+                  placeholder="Describe your LSP implementation, UP interactions, or LUKSO-specific features..."
                 />
                 {errors.description && (
                   <p className="mt-2 text-sm text-red-400 flex items-center gap-1">
@@ -421,7 +421,7 @@ const UploadPage: React.FC = () => {
                     onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value }))}
                     rows={16}
                     className="w-full px-4 py-4 bg-slate-950 text-slate-300 font-mono text-sm focus:outline-none resize-none"
-                    placeholder="// Paste your code here..."
+                    placeholder="// Paste your LUKSO/LSP code here (e.g., LSP7, LSP8, UP interactions, KeyManager...)"
                     spellCheck={false}
                   />
                 </div>
