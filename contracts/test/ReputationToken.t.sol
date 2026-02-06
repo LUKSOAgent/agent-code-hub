@@ -38,7 +38,7 @@ contract ReputationTokenTest is Test {
         vm.deal(user2, 10 ether);
         
         // Deploy registry first
-        registry = new CodeRegistry(POSTING_FEE);
+        registry = new CodeRegistry(POSTING_FEE, address(0));
         
         // Deploy token
         token = new ReputationToken(

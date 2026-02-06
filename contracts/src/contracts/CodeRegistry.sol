@@ -54,16 +54,9 @@ contract CodeRegistry is ICodeRegistry, Ownable, ReentrancyGuard {
     
     // ============ Comments State ============
     
-    struct Comment {
-        uint256 id;
-        address author;
-        string content; // IPFS hash of comment text
-        uint256 timestamp;
-        uint256 parentId; // For threaded replies (0 = top-level)
-    }
-    
+    // Using ICodeRegistry.Comment struct from interface
     // Mapping from codeId => commentId => Comment
-    mapping(uint256 => mapping(uint256 => Comment)) public comments;
+    mapping(uint256 => mapping(uint256 => ICodeRegistry.Comment)) public comments;
     
     // Mapping from codeId => comment count
     mapping(uint256 => uint256) public commentCount;
@@ -225,7 +218,7 @@ contract CodeRegistry is ICodeRegistry, Ownable, ReentrancyGuard {
         commentCounter++;
         uint256 newCommentId = commentCounter;
         
-        Comment storage newComment = comments[codeId][newCommentId];
+        ICodeRegistry.Comment storage newComment = comments[codeId][newCommentId];
         newComment.id = newCommentId;
         newComment.author = msg.sender;
         newComment.content = content;
@@ -245,7 +238,7 @@ contract CodeRegistry is ICodeRegistry, Ownable, ReentrancyGuard {
      * @param commentId ID of the comment
      * @return Comment struct
      */
-    function getComment(uint256 codeId, uint256 commentId) external view returns (Comment memory) {
+    function getComment(uint256 codeId, uint256 commentId) external view returns (ICodeRegistry.Comment memory) {
         return comments[codeId][commentId];
     }
     
@@ -318,6 +311,63 @@ contract CodeRegistry is ICodeRegistry, Ownable, ReentrancyGuard {
      * @param dependencies Array of code IDs this code depends on
      * @return codeId The ID of the newly created code
      */
+    /**
+     * @notice Check if string contains LUKSO/LSP keywords
+     */
+    function _isLuksoRelated(string memory text) internal pure returns (bool) {
+        bytes memory textBytes = bytes(_toLower(text));
+        
+        // Check for LSP
+        if (_contains(textBytes, bytes("lsp"))) return true;
+        if (_contains(textBytes, bytes("lukso"))) return true;
+        if (_contains(textBytes, bytes("universal profile"))) return true;
+        if (_contains(textBytes, bytes("keymanager"))) return true;
+        if (_contains(textBytes, bytes("key manager"))) return true;
+        if (_contains(textBytes, bytes("erc725"))) return true;
+        if (_contains(textBytes, bytes("digital asset"))) return true;
+        if (_contains(textBytes, bytes("identifiable asset"))) return true;
+        if (_contains(textBytes, bytes("vault"))) return true;
+        if (_contains(textBytes, bytes("delegation"))) return true;
+        
+        return false;
+    }
+    
+    /**
+     * @notice Convert string to lowercase
+     */
+    function _toLower(string memory str) internal pure returns (string memory) {
+        bytes memory bStr = bytes(str);
+        bytes memory bLower = new bytes(bStr.length);
+        for (uint i = 0; i < bStr.length; i++) {
+            if ((uint8(bStr[i]) >= 65) && (uint8(bStr[i]) <= 90)) {
+                bLower[i] = bytes1(uint8(bStr[i]) + 32);
+            } else {
+                bLower[i] = bStr[i];
+            }
+        }
+        return string(bLower);
+    }
+    
+    /**
+     * @notice Check if bytes contains substring
+     */
+    function _contains(bytes memory _base, bytes memory _value) internal pure returns (bool) {
+        if (_value.length == 0) return true;
+        if (_base.length < _value.length) return false;
+        
+        for (uint i = 0; i <= _base.length - _value.length; i++) {
+            bool found = true;
+            for (uint j = 0; j < _value.length; j++) {
+                if (_base[i + j] != _value[j]) {
+                    found = false;
+                    break;
+                }
+            }
+            if (found) return true;
+        }
+        return false;
+    }
+
     function postCode(
         string calldata ipfsHash,
         string calldata title,
@@ -333,6 +383,11 @@ contract CodeRegistry is ICodeRegistry, Ownable, ReentrancyGuard {
         if (!supportedLanguages[language]) revert InvalidLanguage();
         if (!supportedCategories[category]) revert InvalidCategory();
         if (msg.value < postingFee) revert InvalidFee();
+        
+        // Enforce LUKSO/LSP content only
+        if (!_isLuksoRelated(title) && !_isLuksoRelated(description)) {
+            revert InvalidCategory();
+        }
         
         // Check for circular dependencies
         _validateDependencies(dependencies);
@@ -706,7 +761,7 @@ contract CodeRegistry is ICodeRegistry, Ownable, ReentrancyGuard {
     /**
      * @dev Copy an array (needed for creating new code versions)
      */
-    function _copyArray(uint256[] storage arr) internal pure returns (uint256[] memory) {
+    function _copyArray(uint256[] storage arr) internal view returns (uint256[] memory) {
         uint256[] memory copy = new uint256[](arr.length);
         for (uint256 i = 0; i < arr.length; i++) {
             copy[i] = arr[i];

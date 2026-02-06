@@ -38,7 +38,7 @@ contract CodeAttributionTest is Test {
         vm.deal(forker, 10 ether);
         
         // Deploy contracts
-        registry = new CodeRegistry(POSTING_FEE);
+        registry = new CodeRegistry(POSTING_FEE, address(0));
         attribution = new CodeAttribution(address(registry));
     }
     

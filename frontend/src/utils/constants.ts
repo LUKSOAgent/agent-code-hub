@@ -2,12 +2,12 @@ import { LUKSO_TESTNET_CONFIG, LUKSO_MAINNET_CONFIG } from './lukso'
 
 export { LUKSO_TESTNET_CONFIG, LUKSO_MAINNET_CONFIG }
 
-// Contract addresses on LUKSO Testnet
+// Contract addresses on LUKSO Testnet (with LSP enforcement)
 export const CONTRACTS = {
   luksoTestnet: {
-    codeRegistry: '0xF07CCA0d521B1ccE1f6b71879d37ef9ab45BF758',
-    codeAttribution: '0xEf4C853f8521fcf475CcF1Cc29D17A9b979e3eC7',
-    reputationToken: '0xbACc1604b99Bf988d4F5A429a717FfCEb44Bc0F5'
+    codeRegistry: '0xd7f29CdEb82DaC84992902dEB96600755DfD2237',
+    codeAttribution: '0x7A94a84ed42eaa849Df11EBd0AFFd91e23F63eB0',
+    reputationToken: '0xd863890d7CccBf8B737C7DB2d79De2c6701ed702'
   }
 } as const
 

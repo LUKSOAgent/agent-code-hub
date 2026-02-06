@@ -40,7 +40,7 @@ contract CodeRegistryTest is Test {
         vm.deal(stranger, 10 ether);
         
         // Deploy registry
-        registry = new CodeRegistry(POSTING_FEE);
+        registry = new CodeRegistry(POSTING_FEE, address(0));
     }
     
     // ============ Happy Path Tests ============

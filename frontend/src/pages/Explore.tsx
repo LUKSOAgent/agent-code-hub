@@ -17,19 +17,6 @@ interface CodeSnippet {
   exists: boolean
 }
 
-// LUKSO/LSP specific keywords for filtering
-const LUKSO_KEYWORDS = [
-  'lsp', 'lukso', 'universal profile', 'up', 'keymanager', 'key manager',
-  'erc725', 'lsp0', 'lsp1', 'lsp2', 'lsp3', 'lsp4', 'lsp5', 'lsp6', 'lsp7', 'lsp8',
-  'lsp9', 'lsp10', 'lsp11', 'lsp12', 'lsp14', 'lsp17', 'lsp20', 'lsp23', 'lsp24', 'lsp25', 'lsp26',
-  'digital asset', 'identifiable asset', 'vault', 'delegation'
-]
-
-function isLuksoRelated(code: CodeSnippet): boolean {
-  const searchText = `${code.name} ${code.description} ${code.tags.join(' ')}`.toLowerCase()
-  return LUKSO_KEYWORDS.some(keyword => searchText.includes(keyword))
-}
-
 export function Explore() {
   const [codes, setCodes] = useState<CodeSnippet[]>([])
   const [loading, setLoading] = useState(true)
@@ -53,9 +40,7 @@ export function Explore() {
             return null
           })
         )
-        // Filter for LUKSO-related content only
-        const luksoCodes = codeData.filter((c): c is CodeSnippet => c !== null && isLuksoRelated(c))
-        setCodes(luksoCodes)
+        setCodes(codeData.filter((c): c is CodeSnippet => c !== null))
       } catch (error) {
         console.error('Error loading codes:', error)
       } finally {
