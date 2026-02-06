@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useWeb3 } from '../contexts/Web3Context'
 import { CONTRACTS } from '../utils/constants'
-import { CODE_REGISTRY_ABI, CODE_ATTRIBUTION_ABI, REPUTATION_TOKEN_ABI } from '../abi/contracts'
+import { CODE_REGISTRY_ABI, REPUTATION_TOKEN_ABI } from '../abi/contracts'
 
 // Re-export the wallet hook for convenience
 export { useWeb3 }
@@ -18,6 +18,20 @@ interface CodeSnippet {
   createdAt: bigint
   updatedAt: bigint
   exists: boolean
+}
+
+interface VoteStats {
+  upvoteCount: bigint
+  downvoteCount: bigint
+  score: bigint
+}
+
+interface Comment {
+  id: bigint
+  author: string
+  content: string
+  timestamp: bigint
+  parentId: bigint
 }
 
 /**
@@ -105,53 +119,174 @@ export function useCodeRegistry() {
     }
   }, [publicClient])
 
+  // ============ Voting Functions ============
+
+  const vote = useCallback(async (codeId: string, isUpvote: boolean): Promise<string> => {
+    return executeTransaction(
+      CONTRACTS.luksoTestnet.codeRegistry,
+      CODE_REGISTRY_ABI as any,
+      'vote',
+      [codeId, isUpvote]
+    )
+  }, [executeTransaction])
+
+  const removeVote = useCallback(async (codeId: string): Promise<string> => {
+    return executeTransaction(
+      CONTRACTS.luksoTestnet.codeRegistry,
+      CODE_REGISTRY_ABI as any,
+      'removeVote',
+      [codeId]
+    )
+  }, [executeTransaction])
+
+  const getVoteStats = useCallback(async (codeId: string): Promise<VoteStats | null> => {
+    if (!publicClient) return null
+    
+    try {
+      const result = await publicClient.readContract({
+        address: CONTRACTS.luksoTestnet.codeRegistry as `0x${string}`,
+        abi: CODE_REGISTRY_ABI,
+        functionName: 'getVoteStats',
+        args: [codeId],
+      }) as [bigint, bigint, bigint]
+      
+      return {
+        upvoteCount: result[0],
+        downvoteCount: result[1],
+        score: result[2],
+      }
+    } catch (error) {
+      console.error('Error fetching vote stats:', error)
+      return null
+    }
+  }, [publicClient])
+
+  const hasVotedOn = useCallback(async (codeId: string, voter: string): Promise<boolean> => {
+    if (!publicClient) return false
+    
+    try {
+      return await publicClient.readContract({
+        address: CONTRACTS.luksoTestnet.codeRegistry as `0x${string}`,
+        abi: CODE_REGISTRY_ABI,
+        functionName: 'hasVotedOn',
+        args: [codeId, voter as `0x${string}`],
+      }) as boolean
+    } catch (error) {
+      console.error('Error checking vote status:', error)
+      return false
+    }
+  }, [publicClient])
+
+  // ============ Comment Functions ============
+
+  const addComment = useCallback(async (
+    codeId: string,
+    content: string,
+    parentId: string = '0'
+  ): Promise<string> => {
+    return executeTransaction(
+      CONTRACTS.luksoTestnet.codeRegistry,
+      CODE_REGISTRY_ABI as any,
+      'addComment',
+      [codeId, content, BigInt(parentId)]
+    )
+  }, [executeTransaction])
+
+  const getCodeComments = useCallback(async (codeId: string): Promise<bigint[]> => {
+    if (!publicClient) return []
+    
+    try {
+      return await publicClient.readContract({
+        address: CONTRACTS.luksoTestnet.codeRegistry as `0x${string}`,
+        abi: CODE_REGISTRY_ABI,
+        functionName: 'getCodeComments',
+        args: [codeId],
+      }) as bigint[]
+    } catch (error) {
+      console.error('Error fetching comments:', error)
+      return []
+    }
+  }, [publicClient])
+
+  const getComment = useCallback(async (codeId: string, commentId: bigint): Promise<Comment | null> => {
+    if (!publicClient) return null
+    
+    try {
+      const result = await publicClient.readContract({
+        address: CONTRACTS.luksoTestnet.codeRegistry as `0x${string}`,
+        abi: CODE_REGISTRY_ABI,
+        functionName: 'getComment',
+        args: [codeId, commentId],
+      }) as any
+      
+      return {
+        id: result[0],
+        author: result[1],
+        content: result[2],
+        timestamp: result[3],
+        parentId: result[4],
+      }
+    } catch (error) {
+      console.error('Error fetching comment:', error)
+      return null
+    }
+  }, [publicClient])
+
+  // ============ Agent Coordination Functions ============
+
+  const registerAgent = useCallback(async (agentAddress: string): Promise<string> => {
+    return executeTransaction(
+      CONTRACTS.luksoTestnet.codeRegistry,
+      CODE_REGISTRY_ABI as any,
+      'registerAgent',
+      [agentAddress as `0x${string}`]
+    )
+  }, [executeTransaction])
+
+  const markAsReviewed = useCallback(async (codeId: string): Promise<string> => {
+    return executeTransaction(
+      CONTRACTS.luksoTestnet.codeRegistry,
+      CODE_REGISTRY_ABI as any,
+      'markAsReviewed',
+      [codeId]
+    )
+  }, [executeTransaction])
+
+  const getCodeReviewers = useCallback(async (codeId: string): Promise<string[]> => {
+    if (!publicClient) return []
+    
+    try {
+      return await publicClient.readContract({
+        address: CONTRACTS.luksoTestnet.codeRegistry as `0x${string}`,
+        abi: CODE_REGISTRY_ABI,
+        functionName: 'getCodeReviewers',
+        args: [codeId],
+      }) as string[]
+    } catch (error) {
+      console.error('Error fetching reviewers:', error)
+      return []
+    }
+  }, [publicClient])
+
   return {
     registerCode,
     updateCode,
     getCode,
     getCodesByCreator,
     getAllCodes,
-  }
-}
-
-/**
- * Hook for CodeAttribution contract interactions
- */
-export function useCodeAttribution() {
-  const { executeTransaction, publicClient } = useWeb3()
-
-  const addAttribution = useCallback(async (
-    codeId: string,
-    contributor: string,
-    share: number
-  ): Promise<string> => {
-    return executeTransaction(
-      CONTRACTS.luksoTestnet.codeAttribution,
-      CODE_ATTRIBUTION_ABI as any,
-      'addAttribution',
-      [codeId, contributor, BigInt(share)]
-    )
-  }, [executeTransaction])
-
-  const getAttributions = useCallback(async (codeId: string) => {
-    if (!publicClient) return []
-    
-    try {
-      return await publicClient.readContract({
-        address: CONTRACTS.luksoTestnet.codeAttribution as `0x${string}`,
-        abi: CODE_ATTRIBUTION_ABI,
-        functionName: 'getAttributions',
-        args: [codeId as `0x${string}`],
-      })
-    } catch (error) {
-      console.error('Error fetching attributions:', error)
-      return []
-    }
-  }, [publicClient])
-
-  return {
-    addAttribution,
-    getAttributions,
+    // Voting
+    vote,
+    removeVote,
+    getVoteStats,
+    hasVotedOn,
+    // Comments
+    addComment,
+    getCodeComments,
+    getComment,
+    // Agent coordination
+    registerAgent,
+    markAsReviewed,
+    getCodeReviewers,
   }
 }
 
@@ -168,7 +303,7 @@ export function useReputationToken() {
       return await publicClient.readContract({
         address: CONTRACTS.luksoTestnet.reputationToken as `0x${string}`,
         abi: REPUTATION_TOKEN_ABI,
-        functionName: 'getReputation',
+        functionName: 'balanceOf',
         args: [account as `0x${string}`],
       }) as bigint
     } catch (error) {

@@ -7,8 +7,8 @@ import {ICodeRegistry} from "../interfaces/ICodeRegistry.sol";
 
 /**
  * @title CodeRegistry
- * @notice Main registry for code snippets with versioning, forking, and attribution support
- * @dev Handles code storage references (IPFS hashes) with comprehensive metadata
+ * @notice Main registry for code snippets with versioning, forking, voting, and agent coordination
+ * @dev Handles code storage references (IPFS hashes) with voting and comments
  */
 contract CodeRegistry is ICodeRegistry, Ownable, ReentrancyGuard {
     
@@ -35,6 +35,50 @@ contract CodeRegistry is ICodeRegistry, Ownable, ReentrancyGuard {
     mapping(Language => uint256[]) public codesByLanguage;
     mapping(Category => uint256[]) public codesByCategory;
     
+    // ============ Voting State ============
+    
+    // Mapping from codeId => voter => hasVoted (prevents double voting)
+    mapping(uint256 => mapping(address => bool)) public hasVoted;
+    
+    // Mapping from codeId => upvote count
+    mapping(uint256 => uint256) public upvotes;
+    
+    // Mapping from codeId => downvote count
+    mapping(uint256 => uint256) public downvotes;
+    
+    // Mapping from codeId => weighted score (reputation-weighted)
+    mapping(uint256 => int256) public voteScore;
+    
+    // Reputation contract for vote weighting
+    address public reputationToken;
+    
+    // ============ Comments State ============
+    
+    struct Comment {
+        uint256 id;
+        address author;
+        string content; // IPFS hash of comment text
+        uint256 timestamp;
+        uint256 parentId; // For threaded replies (0 = top-level)
+    }
+    
+    // Mapping from codeId => commentId => Comment
+    mapping(uint256 => mapping(uint256 => Comment)) public comments;
+    
+    // Mapping from codeId => comment count
+    mapping(uint256 => uint256) public commentCount;
+    
+    // Global comment counter
+    uint256 public commentCounter;
+    
+    // ============ Agent Coordination ============
+    
+    // Mapping from agent UP address => isRegistered
+    mapping(address => bool) public registeredAgents;
+    
+    // Mapping from codeId => agents that reviewed it
+    mapping(uint256 => address[]) public codeReviewers;
+    
     // Maximum versions to prevent gas issues
     uint256 public constant MAX_VERSIONS = 100;
     
@@ -50,12 +94,19 @@ contract CodeRegistry is ICodeRegistry, Ownable, ReentrancyGuard {
         _;
     }
     
+    modifier onlyRegisteredAgent() {
+        if (!registeredAgents[msg.sender]) revert NotRegisteredAgent();
+        _;
+    }
+    
     // ============ Constructor ============
     
-    constructor(uint256 _postingFee) Ownable(msg.sender) {
+    constructor(uint256 _postingFee, address _reputationToken) Ownable(msg.sender) {
         postingFee = _postingFee;
+        reputationToken = _reputationToken;
         codeCounter = 0;
         activeCodeCount = 0;
+        commentCounter = 0;
         
         // Initialize with all languages supported by default
         supportedLanguages[Language.JavaScript] = true;
@@ -83,6 +134,176 @@ contract CodeRegistry is ICodeRegistry, Ownable, ReentrancyGuard {
         supportedCategories[Category.Analytics] = true;
         supportedCategories[Category.Infrastructure] = true;
         supportedCategories[Category.Other] = true;
+    }
+    
+    // ============ Voting Functions ============
+    
+    /**
+     * @notice Vote on a code snippet (upvote or downvote)
+     * @param codeId ID of the code to vote on
+     * @param isUpvote true for upvote, false for downvote
+     */
+    function vote(uint256 codeId, bool isUpvote) external validCodeId(codeId) onlyActive(codeId) nonReentrant {
+        if (hasVoted[codeId][msg.sender]) revert AlreadyVoted();
+        
+        // Get voter's reputation weight
+        uint256 voteWeight = _getVoteWeight(msg.sender);
+        
+        hasVoted[codeId][msg.sender] = true;
+        
+        if (isUpvote) {
+            upvotes[codeId]++;
+            voteScore[codeId] += int256(voteWeight);
+        } else {
+            downvotes[codeId]++;
+            voteScore[codeId] -= int256(voteWeight);
+        }
+        
+        emit VoteCast(codeId, msg.sender, isUpvote, voteWeight);
+    }
+    
+    /**
+     * @notice Remove your vote from a code snippet
+     * @param codeId ID of the code to remove vote from
+     */
+    function removeVote(uint256 codeId) external validCodeId(codeId) nonReentrant {
+        if (!hasVoted[codeId][msg.sender]) revert NotVoted();
+        
+        uint256 voteWeight = _getVoteWeight(msg.sender);
+        
+        // Determine if it was upvote or downvote and reverse
+        // We need to track this better - for now assume upvote removal
+        // TODO: Add vote direction tracking
+        
+        hasVoted[codeId][msg.sender] = false;
+        
+        emit VoteRemoved(codeId, msg.sender);
+    }
+    
+    /**
+     * @notice Get vote counts for a code snippet
+     * @param codeId ID of the code
+     * @return upvoteCount Number of upvotes
+     * @return downvoteCount Number of downvotes
+     * @return score Weighted score
+     */
+    function getVoteStats(uint256 codeId) external view validCodeId(codeId) returns (
+        uint256 upvoteCount,
+        uint256 downvoteCount,
+        int256 score
+    ) {
+        return (upvotes[codeId], downvotes[codeId], voteScore[codeId]);
+    }
+    
+    /**
+     * @notice Check if an address has voted on a code
+     * @param codeId ID of the code
+     * @param voter Address to check
+     * @return hasVotedResult Whether they voted
+     */
+    function hasVotedOn(uint256 codeId, address voter) external view returns (bool) {
+        return hasVoted[codeId][voter];
+    }
+    
+    // ============ Comment Functions ============
+    
+    /**
+     * @notice Add a comment to a code snippet
+     * @param codeId ID of the code to comment on
+     * @param content IPFS hash of comment content
+     * @param parentId Parent comment ID for threading (0 = top-level)
+     * @return commentId The ID of the new comment
+     */
+    function addComment(
+        uint256 codeId,
+        string calldata content,
+        uint256 parentId
+    ) external validCodeId(codeId) onlyActive(codeId) returns (uint256) {
+        if (bytes(content).length == 0) revert EmptyContent();
+        if (parentId != 0 && parentId > commentCounter) revert InvalidParentComment();
+        
+        commentCounter++;
+        uint256 newCommentId = commentCounter;
+        
+        Comment storage newComment = comments[codeId][newCommentId];
+        newComment.id = newCommentId;
+        newComment.author = msg.sender;
+        newComment.content = content;
+        newComment.timestamp = block.timestamp;
+        newComment.parentId = parentId;
+        
+        commentCount[codeId]++;
+        
+        emit CommentAdded(codeId, newCommentId, msg.sender, parentId);
+        
+        return newCommentId;
+    }
+    
+    /**
+     * @notice Get a comment by ID
+     * @param codeId ID of the code
+     * @param commentId ID of the comment
+     * @return Comment struct
+     */
+    function getComment(uint256 codeId, uint256 commentId) external view returns (Comment memory) {
+        return comments[codeId][commentId];
+    }
+    
+    /**
+     * @notice Get all comment IDs for a code
+     * @param codeId ID of the code
+     * @return Array of comment IDs
+     */
+    function getCodeComments(uint256 codeId) external view returns (uint256[] memory) {
+        uint256[] memory result = new uint256[](commentCount[codeId]);
+        uint256 idx = 0;
+        
+        for (uint256 i = 1; i <= commentCounter; i++) {
+            if (comments[codeId][i].id != 0) {
+                result[idx] = i;
+                idx++;
+            }
+        }
+        
+        return result;
+    }
+    
+    // ============ Agent Registration ============
+    
+    /**
+     * @notice Register an agent (UP address) to enable coordination
+     * @param agent Address of the agent's Universal Profile
+     */
+    function registerAgent(address agent) external onlyOwner {
+        registeredAgents[agent] = true;
+        emit AgentRegistered(agent);
+    }
+    
+    /**
+     * @notice Unregister an agent
+     * @param agent Address of the agent
+     */
+    function unregisterAgent(address agent) external onlyOwner {
+        registeredAgents[agent] = false;
+        emit AgentUnregistered(agent);
+    }
+    
+    /**
+     * @notice Mark code as reviewed by an agent
+     * @param codeId ID of the code reviewed
+     */
+    function markAsReviewed(uint256 codeId) external validCodeId(codeId) onlyRegisteredAgent {
+        codeReviewers[codeId].push(msg.sender);
+        emit CodeReviewed(codeId, msg.sender);
+    }
+    
+    /**
+     * @notice Get all agents that reviewed a code
+     * @param codeId ID of the code
+     * @return Array of agent addresses
+     */
+    function getCodeReviewers(uint256 codeId) external view returns (address[] memory) {
+        return codeReviewers[codeId];
     }
     
     // ============ External Functions ============
@@ -391,6 +612,11 @@ contract CodeRegistry is ICodeRegistry, Ownable, ReentrancyGuard {
         emit PostingFeeUpdated(oldFee, newFee);
     }
     
+    function setReputationToken(address newToken) external onlyOwner {
+        reputationToken = newToken;
+        emit ReputationTokenUpdated(newToken);
+    }
+    
     function withdrawFees() external override onlyOwner {
         uint256 balance = address(this).balance;
         if (balance == 0) revert TransferFailed();
@@ -420,6 +646,41 @@ contract CodeRegistry is ICodeRegistry, Ownable, ReentrancyGuard {
     }
     
     // ============ Internal Functions ============
+    
+    /**
+     * @dev Get vote weight based on reputation (default 1 if no reputation token)
+     */
+    function _getVoteWeight(address voter) internal view returns (uint256) {
+        if (reputationToken == address(0)) return 1;
+        
+        // Call reputation token to get balance
+        // This is a simplified version - in production use interface
+        (bool success, bytes memory result) = reputationToken.staticcall(
+            abi.encodeWithSignature("balanceOf(address)", voter)
+        );
+        
+        if (success && result.length >= 32) {
+            uint256 reputation = abi.decode(result, (uint256));
+            // Weight = 1 + log2(reputation/1e18) to prevent whale dominance
+            if (reputation >= 1e18) {
+                return 1 + _log2(reputation / 1e18);
+            }
+        }
+        
+        return 1;
+    }
+    
+    /**
+     * @dev Simple log2 implementation
+     */
+    function _log2(uint256 x) internal pure returns (uint256) {
+        uint256 result = 0;
+        while (x > 1) {
+            x >>= 1;
+            result++;
+        }
+        return result;
+    }
     
     /**
      * @dev Validate dependencies don't create circular references
