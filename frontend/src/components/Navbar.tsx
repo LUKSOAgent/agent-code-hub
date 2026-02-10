@@ -1,6 +1,6 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Link, useLocation } from 'react-router-dom';
-import { Code2, Upload, User, Search, Menu, X, Wallet } from 'lucide-react';
+import { Code2, Upload, User, Search, Menu, X, Wallet, Key } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useAccount } from 'wagmi';
 import { useUniversalProfile } from '../hooks/useLukso';
@@ -76,6 +76,7 @@ export function Navbar() {
     { to: '/explore', icon: Search, label: 'Explore', ariaLabel: 'Explore code snippets' },
     { to: '/upload', icon: Upload, label: 'Upload', ariaLabel: 'Upload new code' },
     { to: '/my-codes', icon: User, label: 'My Codes', ariaLabel: 'View my code snippets' },
+    { to: '/add-controller', icon: Key, label: 'Add Controller', ariaLabel: 'Add controller to UP' },
   ];
 
   return (
