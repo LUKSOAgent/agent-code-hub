@@ -5,7 +5,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WagmiProvider, createConfig, http } from 'wagmi';
 import { luksoTestnet, lukso } from 'wagmi/chains';
 import { getDefaultConfig, RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
+import { Analytics } from '@vercel/analytics/react';
 import '@rainbow-me/rainbowkit/styles.css';
+import { Web3ContextProvider } from './contexts/Web3Context';
 import App from './App';
 import './index.css';
 
@@ -33,7 +35,10 @@ createRoot(document.getElementById('root')!).render(
               borderRadius: 'large',
             })}
           >
-            <App />
+            <Web3ContextProvider>
+              <App />
+              <Analytics />
+            </Web3ContextProvider>
           </RainbowKitProvider>
         </QueryClientProvider>
       </WagmiProvider>
