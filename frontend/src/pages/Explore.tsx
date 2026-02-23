@@ -1,29 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useCodeRegistry } from '../hooks/useLukso'
-import { formatDistanceToNow } from '../utils/format'
-import { ThumbsUp, ThumbsDown, TrendingUp, Filter, AlertCircle, RefreshCw } from 'lucide-react'
-import { SkeletonGrid, EmptyState, ErrorEmptyState } from '../components'
-
-interface CodeSnippet {
-  id: string
-  creator: string
-  ipfsHash: string
-  name: string
-  description: string
-  tags: string[]
-  language: string
-  version: string
-  createdAt: bigint
-  updatedAt: bigint
-  exists: boolean
-}
-
-interface CodeWithVotes extends CodeSnippet {
-  upvotes: bigint
-  downvotes: bigint
-  score: bigint
-}
+import { codeStore } from '../utils/codeStore'
+import { Search, Filter, TrendingUp, Clock, Code2, Hash, User } from 'lucide-react'
+import type { CodeSnippet } from '../types'
 
 // Language badge colors
 const languageColors: Record<string, string> = {
@@ -37,252 +16,231 @@ const languageColors: Record<string, string> = {
 }
 
 export function Explore() {
-  const [codes, setCodes] = useState<CodeWithVotes[]>([])
+  const [codes, setCodes] = useState<CodeSnippet[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const [selectedLanguage, setSelectedLanguage] = useState('all')
+  const [selectedTag, setSelectedTag] = useState('')
   const [sortBy, setSortBy] = useState<'newest' | 'popular'>('popular')
-  const { getAllCodes, getCode, getVoteStats } = useCodeRegistry()
   const navigate = useNavigate()
 
-  const loadCodes = useCallback(async () => {
+  const loadCodes = useCallback(() => {
     setLoading(true)
-    setError(null)
     
-    try {
-      const codeIds = await getAllCodes()
-      const codeData = await Promise.all(
-        codeIds.map(async (id) => {
-          try {
-            const code = await getCode(id)
-            const votes = await getVoteStats(id)
-            if (code && code.exists) {
-              return {
-                id,
-                ...code,
-                upvotes: votes?.upvoteCount || 0n,
-                downvotes: votes?.downvoteCount || 0n,
-                score: votes?.score || 0n
-              } as CodeWithVotes
-            }
-            return null
-          } catch (err) {
-            console.warn(`Failed to load code ${id}:`, err)
-            return null
-          }
-        })
-      )
-      setCodes(codeData.filter((c): c is CodeWithVotes => c !== null))
-    } catch (err) {
-      console.error('Error loading codes:', err)
-      setError('Failed to load code snippets. Please try again.')
-    } finally {
-      setLoading(false)
+    // Get all codes from store
+    let allCodes = codeStore.getAll()
+    
+    // Apply search filter
+    if (searchQuery) {
+      allCodes = codeStore.search(searchQuery)
     }
-  }, [getAllCodes, getCode, getVoteStats])
+    
+    // Apply language filter
+    if (selectedLanguage !== 'all') {
+      allCodes = allCodes.filter(c => c.language.toLowerCase() === selectedLanguage)
+    }
+    
+    // Apply tag filter
+    if (selectedTag) {
+      allCodes = allCodes.filter(c => c.tags.some(t => t.toLowerCase() === selectedTag.toLowerCase()))
+    }
+    
+    // Sort codes
+    allCodes = [...allCodes].sort((a, b) => {
+      if (sortBy === 'newest') {
+        return b.timestamp - a.timestamp
+      } else {
+        return b.likes - a.likes
+      }
+    })
+    
+    setCodes(allCodes)
+    setLoading(false)
+  }, [searchQuery, selectedLanguage, selectedTag, sortBy])
 
   useEffect(() => {
     loadCodes()
   }, [loadCodes])
 
-  const languages = ['all', ...Array.from(new Set(codes.map(c => c.language.toLowerCase())))]
-  
-  let filteredCodes = selectedLanguage === 'all' 
-    ? codes 
-    : codes.filter(c => c.language.toLowerCase() === selectedLanguage)
-  
-  // Sort codes
-  filteredCodes = [...filteredCodes].sort((a, b) => {
-    if (sortBy === 'newest') {
-      return Number(b.createdAt) - Number(a.createdAt)
-    } else {
-      return Number(b.score) - Number(a.score)
-    }
-  })
+  // Get unique languages and tags
+  const allCodes = codeStore.getAll()
+  const languages = ['all', ...Array.from(new Set(allCodes.map(c => c.language.toLowerCase())))]
+  const allTags = Array.from(new Set(allCodes.flatMap(c => c.tags)))
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-950 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header skeleton */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 animate-pulse">
-            <div>
-              <div className="h-8 w-48 bg-slate-800 rounded mb-2" />
-              <div className="h-4 w-64 bg-slate-800 rounded" />
-            </div>
-            <div className="flex gap-3">
-              <div className="h-10 w-32 bg-slate-800 rounded-lg" />
-              <div className="h-10 w-32 bg-slate-800 rounded-lg" />
-            </div>
-          </div>
-          
-          {/* Grid skeleton */}
-          <SkeletonGrid count={6} columns={3} type="code-card" />
-        </div>
-      </div>
-    )
+  const getLanguageColor = (lang: string) => {
+    return languageColors[lang.toLowerCase()] || languageColors.default
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-slate-950 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center py-16">
-            <ErrorEmptyState onRetry={loadCodes} />
-          </div>
-        </div>
-      </div>
-    )
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp)
+    const now = new Date()
+    const diff = now.getTime() - date.getTime()
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+    
+    if (days === 0) {
+      const hours = Math.floor(diff / (1000 * 60 * 60))
+      if (hours === 0) {
+        const minutes = Math.floor(diff / (1000 * 60))
+        return minutes === 0 ? 'Just now' : `${minutes}m ago`
+      }
+      return `${hours}h ago`
+    }
+    if (days === 1) return 'Yesterday'
+    if (days < 7) return `${days} days ago`
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 py-8">
+    <div className="min-h-screen py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Explore Code</h1>
-            <p className="text-slate-400 text-sm mt-1">
-              Discover smart contracts, utilities, and code snippets
-            </p>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-white mb-2">Explore Code</h1>
+          <p className="text-slate-400">Discover smart contract code from the community</p>
+        </div>
+
+        {/* Filters */}
+        <div className="glass-card rounded-xl p-4 mb-6 space-y-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Search code snippets..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+            />
           </div>
-          
-          <div className="flex flex-wrap gap-3">
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'newest' | 'popular')}
-                className="pl-9 pr-8 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-white text-sm
-                  focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50
-                  appearance-none cursor-pointer transition-all hover:bg-slate-800"
-              >
-                <option value="popular">Most Popular</option>
-                <option value="newest">Newest</option>
-              </select>
-            </div>
-            
-            <div className="relative">
+
+          <div className="flex flex-wrap gap-4">
+            {/* Language Filter */}
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-slate-500" />
               <select
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value)}
-                className="px-4 pr-8 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-white text-sm
-                  focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50
-                  appearance-none cursor-pointer transition-all hover:bg-slate-800"
+                className="bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
               >
-                {languages.map(lang => (
-                  <option key={lang} value={lang}>
-                    {lang === 'all' ? 'All Languages' : lang.charAt(0).toUpperCase() + lang.slice(1)}
-                  </option>
+                <option value="all">All Languages</option>
+                {languages.filter(l => l !== 'all').map(lang => (
+                  <option key={lang} value={lang}>{lang.charAt(0).toUpperCase() + lang.slice(1)}</option>
                 ))}
               </select>
+            </div>
+
+            {/* Tag Filter */}
+            {allTags.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Hash className="w-4 h-4 text-slate-500" />
+                <select
+                  value={selectedTag}
+                  onChange={(e) => setSelectedTag(e.target.value)}
+                  className="bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                >
+                  <option value="">All Tags</option>
+                  {allTags.map(tag => (
+                    <option key={tag} value={tag}>#{tag}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Sort */}
+            <div className="flex items-center gap-2 ml-auto">
+              <button
+                onClick={() => setSortBy('popular')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all ${
+                  sortBy === 'popular' 
+                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' 
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                <TrendingUp className="w-4 h-4" />
+                Popular
+              </button>
+              <button
+                onClick={() => setSortBy('newest')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all ${
+                  sortBy === 'newest' 
+                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' 
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                <Clock className="w-4 h-4" />
+                Newest
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Results count */}
-        <div className="mb-6">
-          <p className="text-slate-400 text-sm">
-            Showing <span className="text-white font-medium">{filteredCodes.length}</span> code snippets
-            {selectedLanguage !== 'all' && (
-              <span> in <span className="text-blue-400">{selectedLanguage}</span></span>
-            )}
-          </p>
-        </div>
-
-        {/* Empty state */}
-        {filteredCodes.length === 0 ? (
-          <EmptyState
-            type="search"
-            title="No code snippets found"
-            description={
-              selectedLanguage !== 'all'
-                ? `No ${selectedLanguage} code snippets available. Try selecting a different language.`
-                : "No code snippets available yet. Be the first to upload one!"
-            }
-            actionLabel="Upload Code"
-            actionHref="#/upload"
-          />
+        {/* Results */}
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+          </div>
+        ) : codes.length === 0 ? (
+          <div className="text-center py-16">
+            <Code2 className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">No code snippets found</h3>
+            <p className="text-slate-400">Try adjusting your filters or search query</p>
+          </div>
         ) : (
-          /* Grid */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCodes.map((code, index) => (
-              <div 
+            {codes.map((code) => (
+              <div
                 key={code.id}
                 onClick={() => navigate(`/code/${code.id}`)}
-                className="group bg-slate-900 rounded-xl border border-slate-800 p-5 
-                  hover:border-blue-500/30 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/20
-                  transition-all duration-300 cursor-pointer"
-                style={{ animationDelay: `${index * 50}ms` }}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    navigate(`/code/${code.id}`)
-                  }
-                }}
+                className="glass-card rounded-xl p-5 cursor-pointer hover:border-blue-500/30 transition-all hover:-translate-y-1"
               >
                 {/* Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center
-                    ${languageColors[code.language.toLowerCase()] || languageColors.default}
-                    bg-opacity-10 border`}
-                  >
-                    <span className="font-bold text-sm">
-                      {code.language.slice(0, 2).toUpperCase()}
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <span className={`text-xs px-2 py-1 rounded-full border ${getLanguageColor(code.language)}`}>
+                      {code.language}
                     </span>
                   </div>
-                  <div className="flex items-center gap-1 text-emerald-400 bg-emerald-500/10 
-                    px-2 py-1 rounded-full text-xs font-medium"
-                  >
-                    <TrendingUp className="w-3 h-3" />
-                    <span>{code.score.toString()}</span>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <h3 className="text-white font-semibold text-lg mb-2 group-hover:text-blue-400 transition-colors line-clamp-1">
-                  {code.name}
-                </h3>
-                <p className="text-slate-400 text-sm mb-4 line-clamp-2">{code.description}</p>
-
-                {/* Tags */}
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {code.tags.slice(0, 3).map((tag, idx) => (
-                    <span 
-                      key={idx}
-                      className="px-2 py-1 bg-slate-800 text-slate-300 text-xs rounded-full"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                  {code.tags.length > 3 && (
-                    <span className="px-2 py-1 text-slate-500 text-xs">
-                      +{code.tags.length - 3}
+                  {code.isVerified && (
+                    <span className="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-full border border-emerald-500/20">
+                      Verified
                     </span>
                   )}
                 </div>
 
-                {/* Footer */}
-                <div className="flex items-center justify-between text-sm pt-4 border-t border-slate-800">
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-slate-500 text-xs">
-                      {code.creator.slice(0, 6)}...{code.creator.slice(-4)}
-                    </span>
-                    <span className="text-slate-500 text-xs">
-                      {formatDistanceToNow(Number(code.createdAt))}
-                    </span>
+                {/* Title & Description */}
+                <h3 className="text-lg font-semibold text-white mb-2 line-clamp-1">{code.title}</h3>
+                <p className="text-slate-400 text-sm mb-4 line-clamp-2">{code.description}</p>
+
+                {/* Code Preview */}
+                <div className="bg-slate-950 rounded-lg p-3 mb-4 overflow-hidden">
+                  <pre className="text-xs text-slate-500 line-clamp-3 font-mono">
+                    {code.code}
+                  </pre>
+                </div>
+
+                {/* Tags */}
+                {code.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-4">
+                    {code.tags.slice(0, 3).map(tag => (
+                      <span key={tag} className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded">
+                        #{tag}
+                      </span>
+                    ))}
+                    {code.tags.length > 3 && (
+                      <span className="text-xs text-slate-500">+{code.tags.length - 3}</span>
+                    )}
                   </div>
-                  <div className="flex items-center gap-3 text-slate-500">
-                    <span className="flex items-center gap-1 text-xs">
-                      <ThumbsUp className="w-3 h-3" />
-                      {code.upvotes.toString()}
-                    </span>
-                    <span className="flex items-center gap-1 text-xs">
-                      <ThumbsDown className="w-3 h-3" />
-                      {code.downvotes.toString()}
-                    </span>
+                )}
+
+                {/* Footer */}
+                <div className="flex items-center justify-between text-sm text-slate-500 border-t border-slate-800 pt-4">
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    <span className="truncate max-w-[100px]">{code.author}</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span>{code.likes} likes</span>
+                    <span>{formatDate(code.timestamp)}</span>
                   </div>
                 </div>
               </div>
@@ -293,5 +251,3 @@ export function Explore() {
     </div>
   )
 }
-
-export default Explore

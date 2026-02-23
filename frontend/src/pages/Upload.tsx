@@ -142,19 +142,59 @@ const UploadPage: React.FC = () => {
     setIsUploading(true)
     setUploadStatus('uploading')
     
-    // Simulate upload progress
-    for (let i = 0; i <= 100; i += 10) {
-      await new Promise(resolve => setTimeout(resolve, 300))
-      setUploadProgress(i)
-    }
-    
-    // Simulate success
-    setTimeout(() => {
+    try {
+      // Import upload function and store
+      const { uploadToIPFS } = await import('../utils/ipfs')
+      const { codeStore } = await import('../utils/codeStore')
+      
+      setUploadProgress(20)
+      
+      // Upload code to IPFS
+      const codeData = {
+        name: formData.name,
+        description: formData.description,
+        code: formData.code,
+        language: formData.language,
+        tags: formData.tags,
+        version: formData.version,
+        license: formData.license,
+        author: address,
+        timestamp: Date.now()
+      }
+      
+      setUploadProgress(50)
+      
+      const ipfsHash = await uploadToIPFS(codeData)
+      
+      setUploadProgress(80)
+      
+      // Add to store
+      const newSnippet = codeStore.add({
+        title: formData.name,
+        description: formData.description,
+        code: formData.code,
+        language: formData.language,
+        author: address?.slice(0, 8) || 'anonymous',
+        authorAddress: address || '0x0000000000000000000000000000000000000000',
+        timestamp: Date.now(),
+        tags: formData.tags,
+        likes: 0,
+        forks: 0,
+        isVerified: false,
+        ipfsHash,
+        license: formData.license
+      })
+      
+      setUploadProgress(100)
       setUploadStatus('success')
+      
       setTimeout(() => {
-        navigate('/profile')
+        navigate(`/code/${newSnippet.id}`)
       }, 1500)
-    }, 500)
+    } catch (error) {
+      console.error('Upload error:', error)
+      setUploadStatus('error')
+    }
   }
 
   const getLanguageLabel = (value: string) => {

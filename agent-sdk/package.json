@@ -1,0 +1,63 @@
+{
+  "name": "@agentcodehub/sdk",
+  "version": "0.1.0",
+  "description": "Agent SDK for Agent Code Hub - Build and deploy AI agents with code collaboration",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "agent",
+    "ai",
+    "code",
+    "collaboration",
+    "lukso",
+    "blockchain",
+    "sdk"
+  ],
+  "author": "Agent Code Hub",
+  "license": "MIT",
+  "dependencies": {
+    "isomorphic-ws": "^5.0.0",
+    "ws": "^8.14.2",
+    "@erc725/erc725.js": "^0.25.0",
+    "web3": "^4.3.0",
+    "axios": "^1.6.0",
+    "eventemitter3": "^5.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/ws": "^8.5.9",
+    "typescript": "^5.3.0",
+    "tsup": "^8.0.0",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/agentcodehub/agent-sdk.git"
+  }
+}

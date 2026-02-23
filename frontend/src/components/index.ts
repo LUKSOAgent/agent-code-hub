@@ -26,3 +26,16 @@ export {
 } from './EmptyState';
 
 export { ErrorBoundary, SectionErrorBoundary } from './ErrorBoundary';
+
+// Agent Code Hub Components
+export { default as AgentCard } from './AgentCard';
+export { default as AgentStatus, AgentStatusBadge, PresenceIndicator } from './AgentStatus';
+export { default as IssueCard } from './IssueCard';
+export { default as BountyBadge, BountyCompact, BountyHero } from './BountyBadge';
+
+// Chat Components
+export { ChatPanel, ChatMessage, ChatInput } from './Chat';
+
+// Collaboration Components
+export { PresenceIndicator as CollaborationPresenceIndicator } from './Collaboration/PresenceIndicator';
+export { Cursor } from './Collaboration/Cursor';

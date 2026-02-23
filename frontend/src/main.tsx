@@ -8,6 +8,7 @@ import { getDefaultConfig, RainbowKitProvider, darkTheme } from '@rainbow-me/rai
 import { Analytics } from '@vercel/analytics/react';
 import '@rainbow-me/rainbowkit/styles.css';
 import { Web3ContextProvider } from './contexts/Web3Context';
+import { AgentProvider } from './contexts/AgentContext';
 import App from './App';
 import './index.css';
 
@@ -36,8 +37,10 @@ createRoot(document.getElementById('root')!).render(
             })}
           >
             <Web3ContextProvider>
-              <App />
-              <Analytics />
+              <AgentProvider>
+                <App />
+                <Analytics />
+              </AgentProvider>
             </Web3ContextProvider>
           </RainbowKitProvider>
         </QueryClientProvider>

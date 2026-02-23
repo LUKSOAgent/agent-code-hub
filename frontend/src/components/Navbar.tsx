@@ -4,6 +4,7 @@ import { Code2, Upload, User, Search, Menu, X, Wallet, Key } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react';
 import { useAccount } from 'wagmi';
 import { useUniversalProfile } from '../hooks/useLukso';
+import makeBlockie from 'ethereum-blockies-base64';
 
 export function Navbar() {
   const location = useLocation();
@@ -33,8 +34,9 @@ export function Navbar() {
   // Get display name (UP name or shortened address)
   const displayName = profile?.name || formatAddress(address);
   
-  // Get profile image
+  // Get profile image or generate blockie
   const profileImage = profile?.profilePicture;
+  const blockieImage = address ? makeBlockie(address) : null;
 
   // Handle scroll effect
   useEffect(() => {
@@ -60,7 +62,6 @@ export function Navbar() {
     
     if (mobileMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
-      // Prevent body scroll when menu is open
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
@@ -129,22 +130,25 @@ export function Navbar() {
             {/* UP Profile Display */}
             {isConnected && (
               <div className="ml-3 pl-3 border-l border-slate-800 flex items-center gap-3">
-                {profileImage ? (
-                  <img 
-                    src={profileImage} 
-                    alt={displayName || 'Profile'} 
-                    className="w-8 h-8 rounded-lg object-cover border border-slate-700"
-                  />
-                ) : null}
-                <div className="hidden lg:block text-right">
-                  <p className="text-sm font-medium text-white truncate max-w-[150px]">
-                    {displayName}
-                  </p>
-                  {profile?.name && (
-                    <p className="text-xs text-slate-400 font-mono">
-                      {formatAddress(address)}
-                    </p>
-                  )}
+                {profile?.name && (
+                  <span className="text-sm font-medium text-white truncate max-w-[150px]">
+                    {profile.name}
+                  </span>
+                )}
+                <div className="relative w-8 h-8 rounded-full overflow-hidden border border-slate-700">
+                  {profileImage ? (
+                    <img 
+                      src={profileImage} 
+                      alt={displayName || 'Profile'} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : blockieImage ? (
+                    <img 
+                      src={blockieImage} 
+                      alt={displayName || 'Profile'} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : null}
                 </div>
               </div>
             )}
@@ -153,7 +157,7 @@ export function Navbar() {
             <div className="ml-3 pl-3 border-l border-slate-800">
               <ConnectButton 
                 showBalance={false}
-                accountStatus={profile?.name ? 'avatar' : 'address'}
+                accountStatus="avatar"
                 chainStatus="icon"
               />
             </div>
@@ -161,17 +165,27 @@ export function Navbar() {
 
           {/* Mobile Menu Button */}
           <div className="flex items-center gap-2 md:hidden">
-            {isConnected && profileImage && (
-              <img 
-                src={profileImage} 
-                alt={displayName || 'Profile'} 
-                className="w-8 h-8 rounded-lg object-cover border border-slate-700"
-              />
+            {isConnected && (
+              <div className="relative w-8 h-8 rounded-full overflow-hidden border border-slate-700">
+                {profileImage ? (
+                  <img 
+                    src={profileImage} 
+                    alt={displayName || 'Profile'} 
+                    className="w-full h-full object-cover"
+                  />
+                ) : blockieImage ? (
+                  <img 
+                    src={blockieImage} 
+                    alt={displayName || 'Profile'} 
+                    className="w-full h-full object-cover"
+                  />
+                ) : null}
+              </div>
             )}
             <div className="scale-90">
               <ConnectButton 
                 showBalance={false}
-                accountStatus={profile?.name ? 'avatar' : 'address'}
+                accountStatus="avatar"
                 chainStatus="none"
               />
             </div>
@@ -207,19 +221,29 @@ export function Navbar() {
           {/* Wallet Status in Mobile Menu */}
           <div className="mb-4 p-4 rounded-xl bg-slate-800/80 border border-slate-700">
             <div className="flex items-center gap-3">
-              {isConnected && profileImage ? (
-                <img 
-                  src={profileImage} 
-                  alt={displayName || 'Profile'} 
-                  className="w-10 h-10 rounded-xl object-cover border border-slate-600"
-                />
+              {isConnected ? (
+                <div className="relative w-10 h-10 rounded-full overflow-hidden border border-slate-600">
+                  {profileImage ? (
+                    <img 
+                      src={profileImage} 
+                      alt={displayName || 'Profile'} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : blockieImage ? (
+                    <img 
+                      src={blockieImage} 
+                      alt={displayName || 'Profile'} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-emerald-500/20 flex items-center justify-center">
+                      <Wallet className="w-5 h-5 text-emerald-400" />
+                    </div>
+                  )}
+                </div>
               ) : (
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                  isConnected 
-                    ? 'bg-emerald-500/20 text-emerald-400' 
-                    : 'bg-slate-700 text-slate-400'
-                }`}>
-                  <Wallet className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center">
+                  <Wallet className="w-5 h-5 text-slate-400" />
                 </div>
               )}
               <div className="flex-1 min-w-0">

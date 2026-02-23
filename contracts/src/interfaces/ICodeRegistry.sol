@@ -1,150 +1,270 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.19;
 
 /**
  * @title ICodeRegistry
- * @notice Interface for the CodeRegistry contract that manages code snippets with voting and coordination
+ * @notice Interface for on-chain code snippet registry with IPFS storage
  */
 interface ICodeRegistry {
-    // Enums
-    enum Language { 
-        JavaScript, TypeScript, Python, Solidity, Rust, Go, 
-        Java, Cpp, C, CSharp, Ruby, Swift, Kotlin, Other 
+    // ============ Events ============
+    event CodeSubmitted(
+        bytes32 indexed codeId,
+        bytes32 indexed authorAgentId,
+        string title,
+        CodeType codeType,
+        string ipfsHash,
+        string[] tags,
+        uint256 timestamp
+    );
+    
+    event CodeUpdated(
+        bytes32 indexed codeId,
+        string newIpfsHash,
+        string changeNotes,
+        uint256 version,
+        uint256 timestamp
+    );
+    
+    event CodeVerified(
+        bytes32 indexed codeId,
+        bytes32 indexed verifierAgentId,
+        bool passed,
+        string reportIpfsHash,
+        uint256 timestamp
+    );
+    
+    event CodeRated(
+        bytes32 indexed codeId,
+        bytes32 indexed raterAgentId,
+        uint8 rating,
+        string commentIpfsHash,
+        uint256 timestamp
+    );
+    
+    event CodeDeprecated(
+        bytes32 indexed codeId,
+        string reason,
+        bytes32 recommendedAlternative,
+        uint256 timestamp
+    );
+    
+    event LicenseSet(
+        bytes32 indexed codeId,
+        LicenseType licenseType,
+        string customLicenseUri
+    );
+    
+    event CodeForked(
+        bytes32 indexed originalCodeId,
+        bytes32 indexed forkedCodeId,
+        bytes32 indexed forkerAgentId,
+        uint256 timestamp
+    );
+
+    // ============ Enums ============
+    enum CodeType {
+        Contract,
+        Library,
+        Interface,
+        Script,
+        Test,
+        Utility,
+        Module
     }
     
-    enum Category { 
-        Utility, DeFi, NFT, Gaming, Governance, 
-        Security, Analytics, Infrastructure, Other 
+    enum LicenseType {
+        MIT,
+        GPL3,
+        Apache2,
+        BSD3,
+        Unlicense,
+        Custom,
+        Proprietary
+    }
+    
+    enum VerificationStatus {
+        Unverified,
+        Pending,
+        Verified,
+        Failed,
+        Deprecated
     }
 
-    // Structs
+    // ============ Structs ============
     struct CodeSnippet {
-        uint256 id;
-        address author;
-        string ipfsHash;
+        bytes32 id;
+        bytes32 authorAgentId;
         string title;
         string description;
-        Language language;
-        Category category;
-        uint256[] dependencies;
-        uint256[] previousVersions;
-        bool isActive;
+        CodeType codeType;
+        string language; // solidity, javascript, python, etc.
+        string ipfsHash;
+        string[] tags;
+        LicenseType license;
+        string customLicenseUri;
+        uint256 version;
+        bytes32[] previousVersions;
+        bytes32 parentCodeId; // For forks
         uint256 createdAt;
         uint256 updatedAt;
+        VerificationStatus status;
+        uint256 totalRatings;
+        uint256 ratingSum;
+        uint256 usageCount;
+        mapping(bytes32 => uint8) ratingsByAgent; // agentId => rating
     }
-
-    struct Comment {
-        uint256 id;
-        address author;
-        string content;
+    
+    struct CodeSnippetView {
+        bytes32 id;
+        bytes32 authorAgentId;
+        string title;
+        string description;
+        CodeType codeType;
+        string language;
+        string ipfsHash;
+        string[] tags;
+        LicenseType license;
+        string customLicenseUri;
+        uint256 version;
+        bytes32[] previousVersions;
+        bytes32 parentCodeId;
+        uint256 createdAt;
+        uint256 updatedAt;
+        VerificationStatus status;
+        uint256 totalRatings;
+        uint256 ratingSum;
+        uint256 usageCount;
+    }
+    
+    struct VerificationReport {
+        bytes32 codeId;
+        bytes32 verifierAgentId;
+        bool passed;
+        string reportIpfsHash;
         uint256 timestamp;
-        uint256 parentId;
+        bytes32[] findings; // References to issues found
     }
 
-    // Events
-    event CodePosted(uint256 indexed id, address indexed author, string ipfsHash, string title);
-    event CodeUpdated(uint256 indexed id, uint256 indexed newId, address indexed author);
-    event CodeForked(uint256 indexed parentId, uint256 indexed childId, address indexed forker);
-    event CodeDeactivated(uint256 indexed id, address indexed author);
-    event LanguageAdded(Language language, string name);
-    event CategoryAdded(Category category, string name);
-    event PostingFeeUpdated(uint256 oldFee, uint256 newFee);
-    event FeesWithdrawn(address indexed owner, uint256 amount);
-    event ReputationTokenUpdated(address newToken);
+    // ============ External Functions ============
     
-    // Voting events
-    event VoteCast(uint256 indexed codeId, address indexed voter, bool isUpvote, uint256 weight);
-    event VoteRemoved(uint256 indexed codeId, address indexed voter);
-    
-    // Comment events
-    event CommentAdded(uint256 indexed codeId, uint256 indexed commentId, address indexed author, uint256 parentId);
-    
-    // Agent coordination events
-    event AgentRegistered(address indexed agent);
-    event AgentUnregistered(address indexed agent);
-    event CodeReviewed(uint256 indexed codeId, address indexed agent);
-
-    // Core functions
-    function postCode(
-        string calldata ipfsHash,
+    /**
+     * @notice Submit a new code snippet
+     * @param authorAgentId Agent identifier of the author
+     * @param title Code snippet title
+     * @param description Brief description
+     * @param codeType Type of code
+     * @param language Programming language
+     * @param ipfsHash IPFS hash of the code content
+     * @param tags Array of tags for categorization
+     * @param license License type
+     * @param customLicenseUri URI for custom license (if applicable)
+     * @return codeId Unique identifier for the submitted code
+     */
+    function submitCode(
+        bytes32 authorAgentId,
         string calldata title,
         string calldata description,
-        Language language,
-        Category category,
-        uint256[] calldata dependencies
-    ) external payable returns (uint256);
-
+        CodeType codeType,
+        string calldata language,
+        string calldata ipfsHash,
+        string[] calldata tags,
+        LicenseType license,
+        string calldata customLicenseUri
+    ) external returns (bytes32 codeId);
+    
+    /**
+     * @notice Update an existing code snippet (creates new version)
+     * @param codeId Original code identifier
+     * @param newIpfsHash New IPFS hash
+     * @param changeNotes Description of changes
+     * @return newCodeId New version code identifier
+     */
     function updateCode(
-        uint256 codeId,
+        bytes32 codeId,
         string calldata newIpfsHash,
-        string calldata newTitle,
-        string calldata newDescription,
-        uint256[] calldata newDependencies
-    ) external payable returns (uint256);
-
+        string calldata changeNotes
+    ) external returns (bytes32 newCodeId);
+    
+    /**
+     * @notice Fork an existing code snippet
+     * @param originalCodeId Code to fork
+     * @param forkerAgentId Agent forking the code
+     * @param newTitle New title
+     * @param newIpfsHash New IPFS hash with modifications
+     * @return forkedCodeId New fork identifier
+     */
     function forkCode(
-        uint256 parentId,
-        string calldata ipfsHash,
-        string calldata title,
-        string calldata description,
-        uint256[] calldata additionalDependencies
-    ) external payable returns (uint256);
-
-    function deactivateCode(uint256 codeId) external;
-
-    // Voting functions
-    function vote(uint256 codeId, bool isUpvote) external;
-    function removeVote(uint256 codeId) external;
-    function getVoteStats(uint256 codeId) external view returns (uint256 upvoteCount, uint256 downvoteCount, int256 score);
-    function hasVotedOn(uint256 codeId, address voter) external view returns (bool);
-
-    // Comment functions
-    function addComment(uint256 codeId, string calldata content, uint256 parentId) external returns (uint256);
-    function getComment(uint256 codeId, uint256 commentId) external view returns (Comment memory);
-    function getCodeComments(uint256 codeId) external view returns (uint256[] memory);
-
-    // Agent coordination functions
-    function registerAgent(address agent) external;
-    function unregisterAgent(address agent) external;
-    function markAsReviewed(uint256 codeId) external;
-    function getCodeReviewers(uint256 codeId) external view returns (address[] memory);
-
-    // View functions
-    function getCodeSnippet(uint256 codeId) external view returns (CodeSnippet memory);
-    function getAuthorCodes(address author) external view returns (uint256[] memory);
-    function getAllActiveCodes(uint256 offset, uint256 limit) external view returns (uint256[] memory);
-    function getCodesByLanguage(Language language, uint256 offset, uint256 limit) external view returns (uint256[] memory);
-    function getCodesByCategory(Category category, uint256 offset, uint256 limit) external view returns (uint256[] memory);
-    function isContentRegistered(string calldata ipfsHash) external view returns (bool);
+        bytes32 originalCodeId,
+        bytes32 forkerAgentId,
+        string calldata newTitle,
+        string calldata newIpfsHash
+    ) external returns (bytes32 forkedCodeId);
+    
+    /**
+     * @notice Submit verification report for code
+     * @param codeId Code identifier
+     * @param verifierAgentId Verifying agent
+     * @param passed Whether verification passed
+     * @param reportIpfsHash IPFS hash of detailed report
+     * @param findings Related issue IDs
+     */
+    function submitVerification(
+        bytes32 codeId,
+        bytes32 verifierAgentId,
+        bool passed,
+        string calldata reportIpfsHash,
+        bytes32[] calldata findings
+    ) external;
+    
+    /**
+     * @notice Rate a code snippet
+     * @param codeId Code identifier
+     * @param raterAgentId Rating agent
+     * @param rating Rating value (1-5)
+     * @param commentIpfsHash IPFS hash of detailed comment
+     */
+    function rateCode(
+        bytes32 codeId,
+        bytes32 raterAgentId,
+        uint8 rating,
+        string calldata commentIpfsHash
+    ) external;
+    
+    /**
+     * @notice Mark code as deprecated
+     * @param codeId Code identifier
+     * @param reason Deprecation reason
+     * @param recommendedAlternative Alternative code to use
+     */
+    function deprecateCode(
+        bytes32 codeId,
+        string calldata reason,
+        bytes32 recommendedAlternative
+    ) external;
+    
+    /**
+     * @notice Record usage of a code snippet
+     * @param codeId Code identifier
+     */
+    function recordUsage(bytes32 codeId) external;
+    
+    // ============ View Functions ============
+    
+    function getCode(bytes32 codeId) external view returns (CodeSnippetView memory);
+    function getCodesByAuthor(bytes32 authorAgentId) external view returns (bytes32[] memory);
+    function getCodesByTag(string calldata tag) external view returns (bytes32[] memory);
+    function getCodesByType(CodeType codeType) external view returns (bytes32[] memory);
+    function getAverageRating(bytes32 codeId) external view returns (uint256);
+    function getUserRating(bytes32 codeId, bytes32 agentId) external view returns (uint8);
+    function searchCodes(
+        string calldata searchTerm,
+        CodeType[] calldata types,
+        string[] calldata tags,
+        uint256 page,
+        uint256 pageSize
+    ) external view returns (bytes32[] memory);
+    function getVerificationHistory(bytes32 codeId) external view returns (VerificationReport[] memory);
+    function getForks(bytes32 codeId) external view returns (bytes32[] memory);
+    function getLatestVersion(bytes32 codeId) external view returns (bytes32);
     function getCodeCount() external view returns (uint256);
-    function getActiveCodeCount() external view returns (uint256);
-
-    // Admin functions
-    function setPostingFee(uint256 newFee) external;
-    function setReputationToken(address newToken) external;
-    function withdrawFees() external;
-    function addSupportedLanguage(Language language, string calldata name) external;
-    function addSupportedCategory(Category category, string calldata name) external;
-    function isLanguageSupported(Language language) external view returns (bool);
-    function isCategorySupported(Category category) external view returns (bool);
-
-    // Error definitions
-    error InvalidIPFSHash();
-    error EmptyTitle();
-    error DuplicateContent();
-    error InvalidLanguage();
-    error InvalidCategory();
-    error CodeNotFound();
-    error NotAuthor();
-    error CodeInactive();
-    error CircularDependency();
-    error InvalidFee();
-    error TransferFailed();
-    error InvalidInput();
-    error VersionLimitReached();
-    error AlreadyVoted();
-    error NotVoted();
-    error EmptyContent();
-    error InvalidParentComment();
-    error NotRegisteredAgent();
 }
