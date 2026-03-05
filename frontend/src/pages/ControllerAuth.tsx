@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useWeb3 } from '../contexts/Web3Context';
-import { Button } from '../components/Button';
+import Button from '../components/Button';
 import { ArrowLeft, Key, ExternalLink, Shield, CheckCircle } from 'lucide-react';
 
 interface ControllerAuthorizationProps {
