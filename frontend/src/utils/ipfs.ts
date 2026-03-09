@@ -1,49 +1,22 @@
 import { IPFS_CONFIG } from './constants'
 
-const NFT_STORAGE_API = 'https://api.nft.storage'
-
 /**
- * Upload data to IPFS via NFT.Storage
+ * Upload data to IPFS via server-side API route
  */
 export async function uploadToIPFS(data: any): Promise<string> {
-  const apiKey = process.env.NEXT_PUBLIC_NFT_STORAGE_API_KEY || ''
-  
-  if (!apiKey) {
-    console.warn('NFT.Storage API key not found, using mock hash')
-    // Fallback to mock for development
-    const jsonString = JSON.stringify(data)
-    const encoder = new TextEncoder()
-    const dataBuffer = encoder.encode(jsonString)
-    const hash = await crypto.subtle.digest('SHA-256', dataBuffer)
-    const hashArray = Array.from(new Uint8Array(hash))
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-    return `Qm${hashHex.slice(0, 44)}`
-  }
-
   try {
-    const response = await fetch(`${NFT_STORAGE_API}/upload`, {
+    const response = await fetch('/api/ipfs', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     })
 
     if (!response.ok) {
-      const error = await response.text()
-      throw new Error(`NFT.Storage upload failed: ${error}`)
+      const result = await response.json()
+      throw new Error(result.error || 'IPFS upload failed')
     }
 
-    const result = await response.json()
-    
-    // NFT.Storage returns the CID in result.value.cid
-    const cid = result.value?.cid || result.cid
-    
-    if (!cid) {
-      throw new Error('No CID returned from NFT.Storage')
-    }
-
+    const { cid } = await response.json()
     console.log('Uploaded to IPFS:', cid)
     return cid
   } catch (error) {
@@ -53,39 +26,24 @@ export async function uploadToIPFS(data: any): Promise<string> {
 }
 
 /**
- * Upload a file to IPFS via NFT.Storage
+ * Upload a file to IPFS via server-side API route
  */
 export async function uploadFileToIPFS(file: File): Promise<string> {
-  const apiKey = process.env.NEXT_PUBLIC_NFT_STORAGE_API_KEY || ''
-  
-  if (!apiKey) {
-    throw new Error('NFT.Storage API key not configured')
-  }
-
   try {
     const formData = new FormData()
     formData.append('file', file)
 
-    const response = await fetch(`${NFT_STORAGE_API}/upload`, {
+    const response = await fetch('/api/ipfs', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-      },
       body: formData,
     })
 
     if (!response.ok) {
-      const error = await response.text()
-      throw new Error(`NFT.Storage upload failed: ${error}`)
+      const result = await response.json()
+      throw new Error(result.error || 'IPFS file upload failed')
     }
 
-    const result = await response.json()
-    const cid = result.value?.cid || result.cid
-    
-    if (!cid) {
-      throw new Error('No CID returned from NFT.Storage')
-    }
-
+    const { cid } = await response.json()
     console.log('File uploaded to IPFS:', cid)
     return cid
   } catch (error) {
