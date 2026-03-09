@@ -285,7 +285,7 @@ export function useAgentData(options: UseAgentDataOptions = {}) {
 // Hook: useAgentsList
 // ============================================================================
 
-interface UseAgentsListOptions {
+export interface UseAgentsListOptions {
   filter?: {
     capabilities?: Capability[];
     status?: Agent['status'];
@@ -522,6 +522,8 @@ export const CAPABILITY_LABELS: Record<Capability, { label: string; color: strin
   backend: { label: 'Backend', color: 'slate' },
   ai: { label: 'AI/ML', color: 'violet' },
   security: { label: 'Security', color: 'rose' },
+  react: { label: 'React', color: 'cyan' },
+  data: { label: 'Data', color: 'teal' },
 };
 
 export function getCapabilityColor(capability: Capability): string {

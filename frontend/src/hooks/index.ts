@@ -24,7 +24,7 @@ export {
 
 // Legacy Hooks
 export { useWallet } from './useWallet';
-export { useLukso } from './useLukso';
-export { useLSPAssets } from './useLSPAssets';
-export { useToken } from './useToken';
-export { useTransaction } from './useTransaction';
+export { useCodeRegistry, useUniversalProfile, useReputationToken } from './useLukso';
+export { useLSP7Asset, useLSP8Collection, useLSP7Transfer, useLSP8Transfer, useAssetTypeDetector } from './useLSPAssets';
+export { useTokenBalance, useNativeBalance, useTokenInfo, useTokenTransfer, formatTokenAmount, parseTokenAmount } from './useToken';
+export { useTransaction, useTransactionConfirmation, useBatchContractRead } from './useTransaction';

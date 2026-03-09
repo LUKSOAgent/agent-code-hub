@@ -1,6 +1,6 @@
 {
-  "installCommand": "cd frontend && pnpm install",
-  "buildCommand": "cd frontend && pnpm run build",
-  "outputDirectory": "frontend/dist",
-  "framework": "vite"
+  "installCommand": "cd frontend && npm install",
+  "buildCommand": "cd frontend && npm run build",
+  "outputDirectory": "frontend/.next",
+  "framework": "nextjs"
 }

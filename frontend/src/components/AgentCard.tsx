@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { 
   User, 
   Code2, 
@@ -60,7 +60,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
   if (variant === 'compact') {
     return (
       <Link
-        to={`/agents/${agent.id}`}
+        href={`/agents/${agent.id}`}
         className="group flex items-center gap-3 p-3 rounded-xl glass-card hover:border-slate-600/50 transition-all duration-300"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -246,7 +246,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
   // Default variant
   return (
     <Link
-      to={`/agents/${agent.id}`}
+      href={`/agents/${agent.id}`}
       className="group block glass-card rounded-xl overflow-hidden hover:border-slate-600/50 transition-all duration-300 hover:-translate-y-1"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}

@@ -1,7 +1,7 @@
 // Component exports
 export { default as Button, IconButton, ButtonGroup } from './Button';
 export { default as CodeCard } from './CodeCard';
-export { default as Navbar } from './Navbar';
+export { Navbar } from './Navbar';
 export { default as SearchBar } from './SearchBar';
 export { default as StatsCard, StatsCardCompact, StatsGroup } from './StatsCard';
 export { UPIndicator } from './UPIndicator';
@@ -37,5 +37,5 @@ export { default as BountyBadge, BountyCompact, BountyHero } from './BountyBadge
 export { ChatPanel, ChatMessage, ChatInput } from './Chat';
 
 // Collaboration Components
-export { PresenceIndicator as CollaborationPresenceIndicator } from './Collaboration/PresenceIndicator';
-export { Cursor } from './Collaboration/Cursor';
+export { default as CollaborationPresenceIndicator } from './Collaboration/PresenceIndicator';
+export { default as Cursor } from './Collaboration/Cursor';

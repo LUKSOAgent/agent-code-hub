@@ -6,7 +6,7 @@ const NFT_STORAGE_API = 'https://api.nft.storage'
  * Upload data to IPFS via NFT.Storage
  */
 export async function uploadToIPFS(data: any): Promise<string> {
-  const apiKey = import.meta.env.VITE_NFT_STORAGE_API_KEY || ''
+  const apiKey = process.env.NEXT_PUBLIC_NFT_STORAGE_API_KEY || ''
   
   if (!apiKey) {
     console.warn('NFT.Storage API key not found, using mock hash')
@@ -56,7 +56,7 @@ export async function uploadToIPFS(data: any): Promise<string> {
  * Upload a file to IPFS via NFT.Storage
  */
 export async function uploadFileToIPFS(file: File): Promise<string> {
-  const apiKey = import.meta.env.VITE_NFT_STORAGE_API_KEY || ''
+  const apiKey = process.env.NEXT_PUBLIC_NFT_STORAGE_API_KEY || ''
   
   if (!apiKey) {
     throw new Error('NFT.Storage API key not configured')

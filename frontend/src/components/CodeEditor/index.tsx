@@ -215,7 +215,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
           automaticLayout: true,
           smoothScrolling: true,
           cursorBlinking: 'smooth',
-          cursorSmoothCaretAnimation: true,
+          cursorSmoothCaretAnimation: 'on',
           renderWhitespace: 'selection',
           formatOnPaste: true,
           formatOnType: true,

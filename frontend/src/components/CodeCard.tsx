@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { 
   Heart, 
   GitFork, 
@@ -151,7 +151,7 @@ const CodeCard: React.FC<CodeCardProps> = ({ code, variant = 'default', onLike, 
   if (variant === 'compact') {
     return (
       <Link
-        to={`/code/${code.id}`}
+        href={`/code/${code.id}`}
         className="group flex items-center gap-4 p-4 rounded-xl glass-card 
           hover:border-slate-600/50 transition-all duration-300
           focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
@@ -204,7 +204,7 @@ const CodeCard: React.FC<CodeCardProps> = ({ code, variant = 'default', onLike, 
       hover:border-slate-600/50 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/20"
     >
       <Link
-        to={`/code/${code.id}`}
+        href={`/code/${code.id}`}
         className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/50"
         aria-label={`View ${code.title}`}
       >

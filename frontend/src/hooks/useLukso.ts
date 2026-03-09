@@ -250,7 +250,7 @@ export function useCodeRegistry() {
         address: CONTRACTS.luksoTestnet.codeRegistry as Hex,
         abi: CODE_REGISTRY_ABI,
         functionName: 'getVoteStats',
-        args: [codeId],
+        args: [codeId as any],
       }) as [bigint, bigint, bigint];
       
       return {
@@ -272,7 +272,7 @@ export function useCodeRegistry() {
         address: CONTRACTS.luksoTestnet.codeRegistry as Hex,
         abi: CODE_REGISTRY_ABI,
         functionName: 'hasVotedOn',
-        args: [codeId, voter as Hex],
+        args: [codeId as any, voter as Hex],
       }) as boolean;
     } catch (error) {
       console.error('Error checking vote status:', error);

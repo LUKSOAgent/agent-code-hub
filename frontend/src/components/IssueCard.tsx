@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { 
   AlertCircle, 
   Clock, 
@@ -109,7 +109,7 @@ const IssueCard: React.FC<IssueCardProps> = ({
   if (variant === 'compact') {
     return (
       <Link
-        to={`/issues/${issue.id}`}
+        href={`/issues/${issue.id}`}
         className="group flex items-center gap-3 p-3 rounded-xl glass-card hover:border-slate-600/50 transition-all duration-300"
       >
         {/* Status indicator */}
@@ -252,7 +252,7 @@ const IssueCard: React.FC<IssueCardProps> = ({
   // Default variant
   return (
     <Link
-      to={`/issues/${issue.id}`}
+      href={`/issues/${issue.id}`}
       className="group block glass-card rounded-xl overflow-hidden hover:border-slate-600/50 transition-all duration-300 hover:-translate-y-1"
     >
       <div className="p-5">

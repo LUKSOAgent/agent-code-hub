@@ -184,7 +184,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 <ChatMessage
                   key={message.id}
                   message={message}
-                  isGrouped={isGrouped}
+                  isGrouped={!!isGrouped}
                   isOwn={message.authorAddress === currentAgent?.address}
                   onReply={(msg) => handleSendMessage('', msg.id)}
                 />

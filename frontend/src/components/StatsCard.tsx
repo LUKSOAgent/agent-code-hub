@@ -102,7 +102,7 @@ const StatsCard: React.FC<StatsCardProps> = ({
       onKeyDown={isClickable ? (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          onClick?.() || (href && (window.location.href = href));
+          if (onClick) { onClick(); } else if (href) { window.location.href = href; }
         }
       } : undefined}
     >

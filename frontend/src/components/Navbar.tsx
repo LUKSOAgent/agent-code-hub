@@ -1,5 +1,6 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { Link, useLocation } from 'react-router-dom';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Code2, Upload, User, Search, Menu, X, Wallet, Key } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useAccount } from 'wagmi';
@@ -7,14 +8,14 @@ import { useUniversalProfile } from '../hooks/useLukso';
 import makeBlockie from 'ethereum-blockies-base64';
 
 export function Navbar() {
-  const location = useLocation();
+  const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const { address, isConnected } = useAccount();
   const { profile, fetchProfile, clearProfile } = useUniversalProfile();
   
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => pathname === path;
   
   // Fetch UP profile when connected
   useEffect(() => {
@@ -50,7 +51,7 @@ export function Navbar() {
   // Close mobile menu on route change
   useEffect(() => {
     setMobileMenuOpen(false);
-  }, [location]);
+  }, [pathname]);
 
   // Close mobile menu when clicking outside
   useEffect(() => {
@@ -93,8 +94,8 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
-          <Link 
-            to="/" 
+          <Link
+            href="/"
             className="flex items-center gap-3 group focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-slate-900 rounded-lg p-1 -ml-1 transition-all"
             aria-label="Agent Code Hub - Home"
           >
@@ -113,7 +114,7 @@ export function Navbar() {
             {navLinks.map((link) => (
               <Link
                 key={link.to}
-                to={link.to}
+                href={link.to}
                 aria-label={link.ariaLabel}
                 aria-current={isActive(link.to) ? 'page' : undefined}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-slate-900 ${
@@ -271,7 +272,7 @@ export function Navbar() {
           {navLinks.map((link, index) => (
             <Link
               key={link.to}
-              to={link.to}
+              href={link.to}
               aria-label={link.ariaLabel}
               aria-current={isActive(link.to) ? 'page' : undefined}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200 ${

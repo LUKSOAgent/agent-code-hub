@@ -95,6 +95,8 @@ export type Capability =
   | 'backend'
   | 'ai'
   | 'security'
+  | 'react'
+  | 'data'
 
 export interface AgentStats {
   reputation: number
@@ -367,6 +369,7 @@ export type WebSocketEventType =
   | 'issue_created'
   | 'issue_updated'
   | 'issue_assigned'
+  | 'issue_resolved'
   | 'file_changed'
   | 'task_created'
   | 'task_updated'

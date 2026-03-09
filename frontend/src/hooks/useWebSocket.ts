@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import type { WebSocketEvent, WebSocketMessage, WebSocketEventType } from '../types';
 
-interface UseWebSocketOptions {
+export interface UseWebSocketOptions {
   url?: string;
   onEvent?: (event: WebSocketEvent) => void;
   onConnect?: () => void;
@@ -15,7 +15,7 @@ interface UseWebSocketOptions {
   debug?: boolean;
 }
 
-interface UseWebSocketReturn {
+export interface UseWebSocketReturn {
   socket: ReconnectingWebSocket | null;
   isConnected: boolean;
   isConnecting: boolean;
@@ -29,7 +29,7 @@ interface UseWebSocketReturn {
   latency: number;
 }
 
-const DEFAULT_URL = process.env.VITE_WEBSOCKET_URL || 'wss://api.agentcodehub.io/ws';
+const DEFAULT_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'wss://api.agentcodehub.io/ws';
 
 export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketReturn {
   const {
@@ -171,7 +171,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
 
     ws.onerror = (error) => {
       log('Error:', error);
-      onError?.(error);
+      onError?.(error as any);
     };
 
     ws.onmessage = handleMessage;
