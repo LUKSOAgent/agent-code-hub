@@ -23,35 +23,27 @@ jobs:
       with:
         node-version: '20'
     
-    - name: Install pnpm
-      uses: pnpm/action-setup@v2
-      with:
-        version: 8
-    
-    - name: Get pnpm store directory
-      shell: bash
-      run: |
-        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-    
-    - name: Setup pnpm cache
+    - name: Setup npm cache
       uses: actions/cache@v3
       with:
-        path: ${{ env.STORE_PATH }}
-        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+        path: ~/.npm
+        key: ${{ runner.os }}-npm-${{ hashFiles('frontend/package-lock.json') }}
         restore-keys: |
-          ${{ runner.os }}-pnpm-store-
-    
+          ${{ runner.os }}-npm-
+
     - name: Install dependencies
       working-directory: ./frontend
-      run: pnpm install --no-frozen-lockfile
-    
+      run: npm ci
+
     - name: Type check
       working-directory: ./frontend
       run: echo "Skipping type check" || true
-    
+
     - name: Build
       working-directory: ./frontend
-      run: pnpm vite build
+      run: npm run build
+      env:
+        NFT_STORAGE_API_KEY: ${{ secrets.NFT_STORAGE_API_KEY }}
     
     - name: Deploy to GitHub Pages
       if: github.ref == 'refs/heads/main'
